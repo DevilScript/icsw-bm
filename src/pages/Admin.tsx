@@ -13,19 +13,24 @@ const AdminAuth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Check authentication status on mount
+  // Check authentication status on mount with slight delay to avoid race conditions
   useEffect(() => {
-    const isAuthenticated = sessionStorage.getItem('adminAuthenticated') === 'true';
-    console.log('AdminAuth: isAuthenticated on mount:', isAuthenticated);
-    if (isAuthenticated) {
-      console.log('Already authenticated, navigating to /admin');
-      navigate('/admin', { replace: true });
-    } else {
-      toast({
-        title: "Authentication Required",
-        description: "Please enter the authentication key to access the admin dashboard.",
-      });
-    }
+    const checkAuth = setTimeout(() => {
+      const isAuthenticated = sessionStorage.getItem('adminAuthenticated') === 'true';
+      console.log('AdminAuth: isAuthenticated on mount:', isAuthenticated);
+      if (isAuthenticated) {
+        console.log('Already authenticated, navigating to /admin');
+        navigate('/admin', { replace: true });
+      } else {
+        toast({
+          title: "Authentication Required",
+          description: "Please enter the authentication key to access the admin dashboard.",
+          duration: 5000,
+        });
+      }
+    }, 100); // 100ms delay to ensure sessionStorage is ready
+
+    return () => clearTimeout(checkAuth); // Cleanup timeout on unmount
   }, [navigate, toast]);
 
   const generateRandomKey = (): string => {
@@ -44,6 +49,7 @@ const AdminAuth = () => {
         title: "Configuration Error",
         description: "Discord webhook URL is missing. Please contact support.",
         variant: "destructive",
+        duration: 7000,
       });
       // Clear sessionStorage to prevent inconsistent state
       sessionStorage.removeItem('auth_client_hash');
@@ -82,6 +88,7 @@ const AdminAuth = () => {
         title: "Error",
         description: "Failed to send key to Discord. Please try again or contact support.",
         variant: "destructive",
+        duration: 7000,
       });
       // Clear sessionStorage to prevent inconsistent state
       sessionStorage.removeItem('auth_client_hash');
@@ -102,6 +109,7 @@ const AdminAuth = () => {
       toast({
         title: "New Key Generated",
         description: "A new authentication key has been sent to Discord. Please check and enter it below.",
+        duration: 7000,
       });
     }
   };
@@ -123,8 +131,9 @@ const AdminAuth = () => {
         title: "Security Alert",
         description: "Client verification failed. Please get a new key.",
         variant: "destructive",
+        duration: 7000,
       });
-      // Clear sessionStorage to reset state
+      // Clear sessionStorage and reset state
       sessionStorage.removeItem('auth_client_hash');
       sessionStorage.removeItem('auth_key_timestamp');
       sessionStorage.removeItem('adminAuthenticated');
@@ -141,6 +150,7 @@ const AdminAuth = () => {
       toast({
         title: "Access Granted",
         description: "Welcome to the admin dashboard!",
+        duration: 5000,
       });
       navigate('/admin', { replace: true });
     } else {
@@ -148,6 +158,7 @@ const AdminAuth = () => {
         title: "Access Denied",
         description: "Invalid authentication key. Please try again or get a new key.",
         variant: "destructive",
+        duration: 7000,
       });
     }
   };
