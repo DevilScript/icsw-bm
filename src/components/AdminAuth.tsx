@@ -13,19 +13,26 @@ const AdminAuth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Generate a cryptographically secure random key
+  useEffect(() => {
+    if (sessionStorage.getItem('adminAuthenticated') !== 'true') {
+      toast({
+        title: "Authentication Required",
+        description: "Please enter the authentication key to access the admin dashboard.",
+      });
+    }
+  }, []);
+
   const generateRandomKey = (): string => {
     const array = new Uint8Array(32);
     crypto.getRandomValues(array);
     return Array.from(array, byte => ('0' + byte.toString(16)).slice(-2)).join('');
   };
 
-  // Send key to Discord webhook with additional security
   const sendKeyToDiscord = async (key: string) => {
     const webhookUrl = import.meta.env.VITE_DISCORD_WEBHOOK_URL;
-    
+    console.log('Webhook URL:', webhookUrl);
+
     if (!webhookUrl) {
-      console.error('Discord webhook URL is not configured');
       toast({
         title: "Configuration Error",
         description: "Discord webhook URL is missing. Please contact support.",
@@ -33,31 +40,27 @@ const AdminAuth = () => {
       });
       return;
     }
-    
+
     try {
-      // Add timestamp and client information for security
       const securityInfo = {
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
         referrer: document.referrer,
-        clientHash: btoa(navigator.userAgent + window.screen.width + window.screen.height)
+        clientHash: btoa(navigator.userAgent + window.screen.width + window.screen.height),
       };
-      
+
       const response = await fetch(webhookUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: `New Admin Authentication Key: ${key}\nSecurity Info: ${JSON.stringify(securityInfo)}`,
         }),
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to send key to Discord');
       }
-      
-      // Store client hash with the key for verification in sessionStorage
+
       sessionStorage.setItem('auth_client_hash', securityInfo.clientHash);
       sessionStorage.setItem('auth_key_timestamp', securityInfo.timestamp);
     } catch (error) {
@@ -75,7 +78,7 @@ const AdminAuth = () => {
     setAdminKey(newKey);
     setKeyGenerated(true);
     sendKeyToDiscord(newKey);
-    
+    console.log('Generated Key:', newKey);
     toast({
       title: "New Key Generated",
       description: "A new authentication key has been sent to Discord.",
@@ -84,12 +87,16 @@ const AdminAuth = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Get stored client hash for verification
+
     const storedClientHash = sessionStorage.getItem('auth_client_hash');
     const currentHash = btoa(navigator.userAgent + window.screen.width + window.screen.height);
-    
-    // Security check - verify client hasn't changed
+
+    console.log('Input Key:', inputKey);
+    console.log('Admin Key:', adminKey);
+    console.log('Key Generated:', keyGenerated);
+    console.log('Stored Client Hash:', storedClientHash);
+    console.log('Current Hash:', currentHash);
+
     if (storedClientHash && storedClientHash !== currentHash) {
       toast({
         title: "Security Alert",
@@ -98,16 +105,11 @@ const AdminAuth = () => {
       });
       return;
     }
-    
+
     if (inputKey === adminKey && keyGenerated) {
       sessionStorage.setItem('adminAuthenticated', 'true');
       console.log('Authentication successful, adminAuthenticated set:', sessionStorage.getItem('adminAuthenticated'));
-      toast({
-        title: "Access granted",
-        description: "Welcome to the admin dashboard",
-      });
-      
-      // Use navigate instead of window.location.href
+      console.log('Navigating to /admin');
       navigate('/admin');
     } else {
       toast({
@@ -127,7 +129,7 @@ const AdminAuth = () => {
           </div>
           <h2 className="text-2xl font-bold text-white">Admin Authentication</h2>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             type="password"
@@ -137,18 +139,17 @@ const AdminAuth = () => {
             onChange={(e) => setInputKey(e.target.value)}
             required
           />
-          
+          {!keyGenerated && (
+            <p className="text-sm text-pink-300 text-center">
+              Please click "Get Key" to receive an authentication key via Discord.
+            </p>
+          )}
           <div className="flex gap-2">
-            <Button 
-              type="button"
-              onClick={handleGetKey}
-              className="flex-1 button-3d"
-            >
+            <Button type="button" onClick={handleGetKey} className="flex-1 button-3d">
               Get Key
             </Button>
-            
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="flex-1 bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-lg shadow-pink-400/20 transition-all duration-300"
               disabled={!keyGenerated}
             >
