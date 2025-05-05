@@ -35,12 +35,6 @@ const IdDetails = () => {
           console.log('Loaded idData from localStorage:', data);
         } catch (error) {
           console.error('Error parsing idData from localStorage:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load ID data.",
-            variant: "destructive",
-            duration: 7000,
-          });
         }
       }
 

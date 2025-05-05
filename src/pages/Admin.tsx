@@ -57,17 +57,14 @@ const Admin = () => {
     const checkAuth = () => {
       const adminAuthenticated = sessionStorage.getItem('adminAuthenticated');
       const isAuth = adminAuthenticated === 'true';
-      console.log('Admin: isAuthenticated:', isAuth);
       setIsAuthenticated(isAuth);
     };
     
     checkAuth();
 
-    // Load saved IDs for edit/delete functionality
     const loadSavedIds = () => {
       const storedData = localStorage.getItem('idData');
       if (storedData) {
-        console.log('Admin: Loaded idData from localStorage:', JSON.parse(storedData));
         setSavedIds(JSON.parse(storedData));
       }
     };
@@ -77,10 +74,7 @@ const Admin = () => {
     }
   }, [isAuthenticated]);
 
-  // Handle clan faction change
   const handleFactionChange = (faction: string, formType: 'add' | 'edit' | 'wipe') => {
-    console.log(`handleFactionChange: faction=${faction}, formType=${formType}`);
-    
     let newClan = '';
     let newKagune = '';
     
@@ -97,7 +91,6 @@ const Admin = () => {
     }
     
     if (formType === 'add') {
-      console.log(`Updating rcFormData: faction=${faction}, clan=${newClan}, kagune=${newKagune}`);
       setRcFormData({
         ...rcFormData,
         faction: faction,
@@ -105,7 +98,6 @@ const Admin = () => {
         kagune: newKagune
       });
     } else if (formType === 'edit') {
-      console.log(`Updating editFormData: faction=${faction}, clan=${newClan}, kagune=${newKagune}`);
       setEditFormData({
         ...editFormData,
         faction: faction,
@@ -113,7 +105,6 @@ const Admin = () => {
         kagune: newKagune
       });
     } else if (formType === 'wipe') {
-      console.log(`Updating wipeFormData: faction=${faction}, clan=${newClan}`);
       setWipeFormData({
         ...wipeFormData,
         faction: faction,
@@ -134,7 +125,6 @@ const Admin = () => {
       return;
     }
     
-    // Validate faction and clan compatibility
     if (rcFormData.faction === 'Ghoul' && !['Yoshimura', 'Kaneki'].includes(rcFormData.clan)) {
       toast({
         title: "Error",
@@ -144,11 +134,9 @@ const Admin = () => {
       return;
     }
     
-    // Get existing ID data from localStorage
     const storedData = localStorage.getItem('idData');
     const idData = storedData ? JSON.parse(storedData) : [];
     
-    // Add new ID data
     const newIdData = {
       ...rcFormData,
       rc: parseInt(rcFormData.rc),
@@ -158,7 +146,6 @@ const Admin = () => {
     
     idData.push(newIdData);
     
-    // Save back to localStorage
     localStorage.setItem('idData', JSON.stringify(idData));
     
     toast({
@@ -166,8 +153,6 @@ const Admin = () => {
       description: `Added ID: ${rcFormData.id}`,
     });
     
-    // Reset form but keep faction and clan
-    console.log(`Resetting rcFormData: keeping faction=${rcFormData.faction}, clan=${rcFormData.clan}`);
     setRcFormData({ 
       id: '', 
       clan: rcFormData.clan, 
@@ -182,7 +167,6 @@ const Admin = () => {
       isActive: true
     });
 
-    // Refresh saved IDs
     const updatedData = localStorage.getItem('idData');
     if (updatedData) {
       setSavedIds(JSON.parse(updatedData));
@@ -210,7 +194,6 @@ const Admin = () => {
       return;
     }
     
-    // Validate faction and clan compatibility
     if (wipeFormData.faction === 'Ghoul' && !['Yoshimura', 'Kaneki'].includes(wipeFormData.clan)) {
       toast({
         title: "Error",
@@ -220,20 +203,16 @@ const Admin = () => {
       return;
     }
     
-    // Get existing wipe data from localStorage
     const storedData = localStorage.getItem('wipeData');
     const wipeData = storedData ? JSON.parse(storedData) : [];
     
-    // Find if clan already exists in data
     const clanIndex = wipeData.findIndex((item: any) => 
       item.clan === wipeFormData.clan && item.faction === wipeFormData.faction
     );
     
     if (clanIndex >= 0) {
-      // Update count if clan exists
       wipeData[clanIndex].count = parseInt(wipeFormData.count);
     } else {
-      // Add new clan data
       wipeData.push({
         clan: wipeFormData.clan,
         faction: wipeFormData.faction,
@@ -241,7 +220,6 @@ const Admin = () => {
       });
     }
     
-    // Save back to localStorage
     localStorage.setItem('wipeData', JSON.stringify(wipeData));
     
     toast({
@@ -249,8 +227,6 @@ const Admin = () => {
       description: `Updated ${wipeFormData.clan} count to ${wipeFormData.count}`,
     });
     
-    // Reset form but keep faction and clan
-    console.log(`Resetting wipeFormData: keeping faction=${wipeFormData.faction}, clan=${wipeFormData.clan}`);
     setWipeFormData({ 
       clan: wipeFormData.clan, 
       faction: wipeFormData.faction, 
@@ -262,7 +238,6 @@ const Admin = () => {
     const idToEdit = savedIds.find(id => id.id === selectedId);
     
     if (idToEdit) {
-      console.log(`Selected ID: ${selectedId}, setting editFormData`);
       setEditFormData({
         selectedId,
         id: idToEdit.id,
@@ -292,7 +267,6 @@ const Admin = () => {
       return;
     }
     
-    // Validate faction and clan compatibility
     if (editFormData.faction === 'Ghoul' && !['Yoshimura', 'Kaneki'].includes(editFormData.clan)) {
       toast({
         title: "Error",
@@ -302,15 +276,12 @@ const Admin = () => {
       return;
     }
     
-    // Get existing ID data from localStorage
     const storedData = localStorage.getItem('idData');
     let idData = storedData ? JSON.parse(storedData) : [];
     
-    // Find the ID to edit
     const idIndex = idData.findIndex((item: IdData) => item.id === editFormData.selectedId);
     
     if (idIndex >= 0) {
-      // Update the ID data
       idData[idIndex] = {
         ...idData[idIndex],
         id: editFormData.id,
@@ -325,7 +296,6 @@ const Admin = () => {
         isActive: editFormData.isActive
       };
       
-      // Save back to localStorage
       localStorage.setItem('idData', JSON.stringify(idData));
       
       toast({
@@ -333,11 +303,8 @@ const Admin = () => {
         description: `Updated ID: ${editFormData.id}`,
       });
       
-      // Refresh saved IDs
       setSavedIds(idData);
       
-      // Reset form but keep faction and clan
-      console.log(`Resetting editFormData: keeping faction=${editFormData.faction}, clan=${editFormData.clan}`);
       setEditFormData({
         selectedId: '',
         id: '',
@@ -364,15 +331,12 @@ const Admin = () => {
   const handleRemoveSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Get existing ID data from localStorage
     const storedData = localStorage.getItem('idData');
     let idData = storedData ? JSON.parse(storedData) : [];
     
-    // Filter out the ID to remove
     const newIdData = idData.filter((item: IdData) => item.id !== removeId);
     
     if (newIdData.length < idData.length) {
-      // Save back to localStorage
       localStorage.setItem('idData', JSON.stringify(newIdData));
       
       toast({
@@ -380,10 +344,8 @@ const Admin = () => {
         description: `Removed ID: ${removeId}`,
       });
       
-      // Refresh saved IDs
       setSavedIds(newIdData);
       
-      // Reset form
       setRemoveId('');
     } else {
       toast({
@@ -396,13 +358,11 @@ const Admin = () => {
 
   const handleLogout = () => {
     sessionStorage.removeItem('adminAuthenticated');
-    console.log('Admin: Logged out, adminAuthenticated removed from sessionStorage');
     setIsAuthenticated(false);
     navigate('/');
   };
 
   if (!isAuthenticated) {
-    console.log('Admin: Not authenticated, redirecting to /admin-auth');
     return <Navigate to="/admin-auth" replace />;
   }
 
@@ -419,7 +379,6 @@ const Admin = () => {
   return (
     <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-glass-dark">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <div className="mb-10 text-center">
           <h1 className="text-4xl font-bold text-white mb-2">
             <span className="text-pink-300">Admin</span> Dashboard
@@ -455,7 +414,6 @@ const Admin = () => {
           </div>
 
           <div className="mt-6">
-            {/* Add ID Tab */}
             <TabsContent value="add-id" className="mt-0">
               <GlassCard className="border border-pink-300/30 shadow-lg shadow-pink-500/10">
                 <form onSubmit={handleRcSubmit} className="space-y-6">
@@ -476,10 +434,7 @@ const Admin = () => {
                       <Label htmlFor="rc-faction">Faction</Label>
                       <Select 
                         value={rcFormData.faction}
-                        onValueChange={(val) => {
-                          console.log(`rcFormData faction change: ${val}`);
-                          handleFactionChange(val, 'add');
-                        }}
+                        onValueChange={(val) => handleFactionChange(val, 'add')}
                       >
                         <SelectTrigger className="glass-input border-pink-300/30">
                           <SelectValue placeholder="Select Faction" />
@@ -498,7 +453,6 @@ const Admin = () => {
                         key={rcFormData.faction}
                         value={rcFormData.clan}
                         onValueChange={(val) => {
-                          console.log(`rcFormData clan change: ${val}`);
                           if (val && clans[rcFormData.faction]?.includes(val)) {
                             setRcFormData({...rcFormData, clan: val});
                           }
@@ -634,7 +588,6 @@ const Admin = () => {
               </GlassCard>
             </TabsContent>
 
-            {/* Add Clan ID Tab */}
             <TabsContent value="add-clan" className="mt-0">
               <GlassCard className="border border-pink-300/30 shadow-lg shadow-pink-500/10">
                 <form onSubmit={handleWipeSubmit} className="space-y-6">
@@ -642,10 +595,7 @@ const Admin = () => {
                     <Label htmlFor="wipe-faction">Faction</Label>
                     <Select 
                       value={wipeFormData.faction}
-                      onValueChange={(val) => {
-                        console.log(`wipeFormData faction change: ${val}`);
-                        handleFactionChange(val, 'wipe');
-                      }}
+                      onValueChange={(val) => handleFactionChange(val, 'wipe')}
                     >
                       <SelectTrigger className="glass-input border-pink-300/30">
                         <SelectValue placeholder="Select Faction" />
@@ -664,7 +614,6 @@ const Admin = () => {
                       key={wipeFormData.faction}
                       value={wipeFormData.clan}
                       onValueChange={(val) => {
-                        console.log(`wipeFormData clan change: ${val}`);
                         if (val && clans[wipeFormData.faction]?.includes(val)) {
                           setWipeFormData({...wipeFormData, clan: val});
                         }
@@ -705,7 +654,6 @@ const Admin = () => {
               </GlassCard>
             </TabsContent>
 
-            {/* Edit ID Tab */}
             <TabsContent value="edit-id" className="mt-0">
               <GlassCard className="border border-pink-300/30 shadow-lg shadow-pink-500/10">
                 <form onSubmit={handleEditSubmit} className="space-y-6">
@@ -747,10 +695,7 @@ const Admin = () => {
                           <Label htmlFor="edit-faction">Faction</Label>
                           <Select 
                             value={editFormData.faction}
-                            onValueChange={(val) => {
-                              console.log(`editFormData faction change: ${val}`);
-                              handleFactionChange(val, 'edit');
-                            }}
+                            onValueChange={(val) => handleFactionChange(val, 'edit')}
                           >
                             <SelectTrigger className="glass-input border-pink-300/30">
                               <SelectValue placeholder="Select Faction" />
@@ -769,7 +714,6 @@ const Admin = () => {
                             key={editFormData.faction}
                             value={editFormData.clan}
                             onValueChange={(val) => {
-                              console.log(`editFormData clan change: ${val}`);
                               if (val && clans[editFormData.faction]?.includes(val)) {
                                 setEditFormData({...editFormData, clan: val});
                               }
@@ -907,7 +851,6 @@ const Admin = () => {
               </GlassCard>
             </TabsContent>
 
-            {/* Remove ID Tab */}
             <TabsContent value="remove-id" className="mt-0">
               <GlassCard className="border border-pink-300/30 shadow-lg shadow-pink-500/10">
                 <form onSubmit={handleRemoveSubmit} className="space-y-6">
