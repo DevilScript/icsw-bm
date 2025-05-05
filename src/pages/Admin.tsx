@@ -56,20 +56,20 @@ const Admin = () => {
 
   useEffect(() => {
     const checkAuth = () => {
-      const adminAuthenticated = localStorage.getItem('adminAuthenticated');
+      const adminAuthenticated = sessionStorage.getItem('adminAuthenticated'); 
       setIsAuthenticated(adminAuthenticated === 'true');
     };
-    
+  
     checkAuth();
-
+  
     // Load saved IDs for edit/delete functionality
     const loadSavedIds = () => {
-      const storedData = localStorage.getItem('idData');
+      const storedData = localStorage.getItem('idData'); 
       if (storedData) {
         setSavedIds(JSON.parse(storedData));
       }
     };
-
+  
     if (isAuthenticated) {
       loadSavedIds();
     }
