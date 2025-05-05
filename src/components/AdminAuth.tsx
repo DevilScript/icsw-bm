@@ -105,15 +105,12 @@ const AdminAuth = () => {
             <Key size={28} className="text-pink-300" />
           </div>
           <h2 className="text-2xl font-bold text-white">Admin Authentication</h2>
-          <p className="text-glass-light text-center mt-2">
-            Enter the authentication key to access admin dashboard
-          </p>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             type="password"
-            placeholder="Enter authentication key"
+            placeholder="Enter Key"
             className="glass-input border-pink-300/30 focus:border-pink-400/50 text-center"
             value={inputKey}
             onChange={(e) => setInputKey(e.target.value)}

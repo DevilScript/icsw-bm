@@ -6,14 +6,6 @@ import { useToast } from '@/hooks/use-toast';
 import IdDetails from '@/components/IdDetails';
 import GlassCard from '@/components/GlassCard';
 
-// Mock data for wipe
-const mockWipeData: ClanCount[] = [
-  { clan: "Arima", faction: "CCG", count: 0 },
-  { clan: "Suzuya", faction: "CCG", count: 0 },
-  { clan: "Yoshimura", faction: "Ghoul", count: 2 },
-  { clan: "Kaneki", faction: "Ghoul", count: 5 },
-];
-
 // Mock data for RC
 interface RcData {
   rc: string;
@@ -32,16 +24,32 @@ const mockRcData: RcData[] = [
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState<string>("clans");
-  const [wipeData, setWipeData] = useState<ClanCount[]>(mockWipeData);
+  const [wipeData, setWipeData] = useState<ClanCount[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const { toast } = useToast();
 
   // Auto-refresh data when the component gains focus
   useEffect(() => {
     const loadData = () => {
-      const storedWipeData = localStorage.getItem('wipeData');
-      if (storedWipeData) {
-        setWipeData(JSON.parse(storedWipeData));
+      setLoading(true);
+      try {
+        const storedWipeData = localStorage.getItem('wipeData');
+        if (storedWipeData) {
+          const parsedData: ClanCount[] = JSON.parse(storedWipeData);
+          setWipeData(parsedData);
+        } else {
+          setWipeData([]);
+        }
+      } catch (error) {
+        console.error('Error loading wipeData from localStorage:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load wipe data.",
+          variant: "destructive"
+        });
+        setWipeData([]);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -69,7 +77,7 @@ const Dashboard = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, [toast]);
 
   return (
     <>
