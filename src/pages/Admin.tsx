@@ -393,7 +393,7 @@ const Admin = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('adminAuthenticated');
+    sessionStorage.removeItem('adminAuthenticated'); 
     setIsAuthenticated(false);
     navigate('/');
   };
