@@ -9,8 +9,6 @@ import GlassCard from '@/components/GlassCard';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { IdData } from '@/components/IdDetails';
-import { db, auth, signIn } from './lib/firebase';
-import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 
 const Admin = () => {
   const { toast } = useToast();
@@ -82,9 +80,6 @@ const Admin = () => {
       intervalId = setInterval(checkAuth, 500);
     }, 100);
 
-    // ลงชื่อเข้าใช้ Firebase แบบ Anonymous
-    signIn();
-
     return () => {
       clearTimeout(timeoutId);
       clearInterval(intervalId);
@@ -95,8 +90,11 @@ const Admin = () => {
     const loadSavedIds = async () => {
       setIsLoading(true);
       try {
-        const querySnapshot = await getDocs(collection(db, 'ids'));
-        const idData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as IdData));
+        const response = await fetch('/api/ids');
+        if (!response.ok) {
+          throw new Error('Failed to fetch IDs');
+        }
+        const idData = await response.json();
         setSavedIds(idData);
       } catch {
         toast({
@@ -112,8 +110,10 @@ const Admin = () => {
 
     const loadWipeData = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, 'wipe'));
-        // สมมติว่า backend จัดการ wipeData และ frontend ไม่ต้องอัปเดต state
+        const response = await fetch('/api/wipe');
+        if (!response.ok) {
+          throw new Error('Failed to fetch wipe data');
+        }
       } catch {
         toast({
           title: "ข้อผิดพลาด",
@@ -201,8 +201,18 @@ const Admin = () => {
         price: parseInt(rcFormData.price) || 0
       };
       
-      const docRef = await addDoc(collection(db, 'ids'), newIdData);
-      setSavedIds(prev => [...prev, { id: docRef.id, ...newIdData }]);
+      const response = await fetch('/api/ids', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newIdData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save ID');
+      }
+
+      const savedId = await response.json();
+      setSavedIds(prev => [...prev, savedId]);
       
       toast({
         title: "สำเร็จ",
@@ -276,15 +286,14 @@ const Admin = () => {
         count: parseInt(wipeFormData.count)
       };
       
-      const querySnapshot = await getDocs(collection(db, 'wipe'));
-      const existingDoc = querySnapshot.docs.find(doc => 
-        doc.data().clan === wipeData.clan && doc.data().faction === wipeData.faction
-      );
-      
-      if (existingDoc) {
-        await updateDoc(doc(db, 'wipe', existingDoc.id), { count: wipeData.count });
-      } else {
-        await addDoc(collection(db, 'wipe'), wipeData);
+      const response = await fetch('/api/wipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(wipeData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save wipe data');
       }
       
       toast({
@@ -378,8 +387,18 @@ const Admin = () => {
         isActive: editFormData.isActive
       };
       
-      await updateDoc(doc(db, 'ids', editFormData.selectedId), updatedIdData);
-      setSavedIds(prev => prev.map(id => id.id === editFormData.selectedId ? { id: editFormData.selectedId, ...updatedIdData } : id));
+      const response = await fetch(`/api/ids/${editFormData.selectedId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedIdData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update ID');
+      }
+
+      const updatedId = await response.json();
+      setSavedIds(prev => prev.map(id => id.id === editFormData.selectedId ? updatedId : id));
       
       toast({
         title: "สำเร็จ",
@@ -418,7 +437,14 @@ const Admin = () => {
     
     setIsLoading(true);
     try {
-      await deleteDoc(doc(db, 'ids', removeId));
+      const response = await fetch(`/api/ids/${removeId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete ID');
+      }
+
       setSavedIds(prev => prev.filter(id => id.id !== removeId));
       
       toast({
@@ -442,10 +468,10 @@ const Admin = () => {
 
   const handleLogout = () => {
     try {
-      localStorage.removeItem('adminAuthenticated');
-      localStorage.removeItem('auth_client_hash');
-      localStorage.removeItem('auth_key_timestamp');
-      localStorage.removeItem('usedKeys');
+      sessionStorage.removeItem('adminAuthenticated');
+      sessionStorage.removeItem('auth_client_hash');
+      sessionStorage.removeItem('auth_key_timestamp');
+      sessionStorage.removeItem('usedKeys');
       setIsAuthenticated(false);
       navigate('/', { replace: true });
     } catch {
@@ -769,7 +795,8 @@ const Admin = () => {
             </TabsContent>
 
             <TabsContent value="edit-id" className="mt-0">
-              <GlassCard className="border border-pink-300/30 shadow-md">
+              <GlassCard className="border border-pink- Graves/icsw-bm/src/pages/Admin.tsx
+    30/30 shadow-md">
                 <form onSubmit={handleEditSubmit} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="edit-select-id">เลือก ID เพื่อแก้ไข</Label>
