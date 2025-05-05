@@ -85,13 +85,6 @@ const AdminAuth = () => {
     setAdminKey(newKey);
     setKeyGenerated(true);
     const success = await sendKeyToDiscord(newKey);
-    
-    if (success) {
-      toast({
-        title: "New Key Generated",
-        description: "A new authentication key has been sent to Discord.",
-      });
-    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
