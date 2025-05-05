@@ -13,7 +13,7 @@ import { IdData } from '@/components/IdDetails';
 const Admin = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   
   const [rcFormData, setRcFormData] = useState({
     id: '',
@@ -54,26 +54,54 @@ const Admin = () => {
   const [savedIds, setSavedIds] = useState<IdData[]>([]);
 
   useEffect(() => {
-    const checkAuth = () => {
-      const isAuth = localStorage.getItem('adminAuthenticated') === 'true';
-      setIsAuthenticated(isAuth);
-    };
-    
-    checkAuth();
+    let intervalId: NodeJS.Timeout;
 
-    const loadSavedIds = () => {
-      const storedData = localStorage.getItem('idData');
-      if (storedData) {
-        try {
-          setSavedIds(JSON.parse(storedData));
-        } catch {
-          toast({
-            title: "Error",
-            description: "Failed to load ID data.",
-            variant: "destructive",
-            duration: 7000,
-          });
+    const checkAuth = () => {
+      try {
+        const isAuth = localStorage.getItem('adminAuthenticated') === 'true';
+        setIsAuthenticated(isAuth);
+        if (isAuth) {
+          clearInterval(intervalId); // หยุด interval เมื่อยืนยันตัวตนสำเร็จ
         }
+      } catch (error) {
+        toast({
+          title: "ข้อผิดพลาด",
+          description: "ไม่สามารถตรวจสอบการยืนยันตัวตนได้ โปรดลองใหม่",
+          variant: "destructive",
+          duration: 7000,
+        });
+        setIsAuthenticated(false);
+      }
+    };
+
+    // ตรวจสอบครั้งแรกหลังจากหน่วงเวลา 100ms
+    const timeoutId = setTimeout(() => {
+      checkAuth();
+      // เริ่ม interval เพื่อตรวจสอบซ้ำทุก 500ms (สูงสุด 3 วินาที)
+      intervalId = setInterval(checkAuth, 500);
+    }, 100);
+
+    // Cleanup
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
+  }, [toast]);
+
+  useEffect(() => {
+    const loadSavedIds = () => {
+      try {
+        const storedData = localStorage.getItem('idData');
+        if (storedData) {
+          setSavedIds(JSON.parse(storedData));
+        }
+      } catch {
+        toast({
+          title: "ข้อผิดพลาด",
+          description: "ไม่สามารถโหลดข้อมูล ID ได้",
+          variant: "destructive",
+          duration: 7000,
+        });
       }
     };
 
@@ -126,8 +154,8 @@ const Admin = () => {
     
     if (rcFormData.faction === 'None') {
       toast({
-        title: "Error",
-        description: "Please select a faction (CCG or Ghoul).",
+        title: "ข้อผิดพลาด",
+        description: "โปรดเลือกฝ่าย (CCG หรือ Ghoul)",
         variant: "destructive",
         duration: 7000,
       });
@@ -136,51 +164,60 @@ const Admin = () => {
     
     if (rcFormData.faction === 'Ghoul' && !['Yoshimura', 'Kaneki'].includes(rcFormData.clan)) {
       toast({
-        title: "Error",
-        description: "Invalid clan for Ghoul faction. Please select Yoshimura or Kaneki.",
+        title: "ข้อผิดพลาด",
+        description: "ตระกูลไม่ถูกต้องสำหรับฝ่าย Ghoul โปรดเลือก Yoshimura หรือ Kaneki",
         variant: "destructive",
         duration: 7000,
       });
       return;
     }
     
-    const storedData = localStorage.getItem('idData');
-    const idData = storedData ? JSON.parse(storedData) : [];
-    
-    const newIdData = {
-      ...rcFormData,
-      rc: parseInt(rcFormData.rc) || 0,
-      gp: parseInt(rcFormData.gp) || 0,
-      price: parseInt(rcFormData.price) || 0
-    };
-    
-    idData.push(newIdData);
-    
-    localStorage.setItem('idData', JSON.stringify(idData));
-    
-    toast({
-      title: "Success",
-      description: `Added ID: ${rcFormData.id}`,
-      duration: 5000,
-    });
-    
-    setRcFormData({ 
-      id: '', 
-      clan: rcFormData.clan, 
-      faction: rcFormData.faction,
-      kagune: rcFormData.kagune, 
-      isKaguneV2: false, 
-      rank: 'A', 
-      rc: '', 
-      gp: '', 
-      price: '',
-      link: 'https://www.facebook.com/is.Moyx',
-      isActive: true
-    });
+    try {
+      const storedData = localStorage.getItem('idData');
+      const idData = storedData ? JSON.parse(storedData) : [];
+      
+      const newIdData = {
+        ...rcFormData,
+        rc: parseInt(rcFormData.rc) || 0,
+        gp: parseInt(rcFormData.gp) || 0,
+        price: parseInt(rcFormData.price) || 0
+      };
+      
+      idData.push(newIdData);
+      
+      localStorage.setItem('idData', JSON.stringify(idData));
+      
+      toast({
+        title: "สำเร็จ",
+        description: `เพิ่ม ID: ${rcFormData.id}`,
+        duration: 5000,
+      });
+      
+      setRcFormData({ 
+        id: '', 
+        clan: rcFormData.clan, 
+        faction: rcFormData.faction,
+        kagune: rcFormData.kagune, 
+        isKaguneV2: false, 
+        rank: 'A', 
+        rc: '', 
+        gp: '', 
+        price: '',
+        link: 'https://www.facebook.com/is.Moyx',
+        isActive: true
+      });
 
-    const updatedData = localStorage.getItem('idData');
-    if (updatedData) {
-      setSavedIds(JSON.parse(updatedData));
+      const updatedData = localStorage.getItem('idData');
+      if (updatedData) {
+        setSavedIds(JSON.parse(updatedData));
+      }
+    } catch {
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถบันทึกข้อมูล ID ได้",
+        variant: "destructive",
+        duration: 7000,
+      });
     }
   };
   
@@ -189,8 +226,8 @@ const Admin = () => {
     
     if (wipeFormData.faction === 'None') {
       toast({
-        title: "Error",
-        description: "Please select a faction (CCG or Ghoul).",
+        title: "ข้อผิดพลาด",
+        description: "โปรดเลือกฝ่าย (CCG หรือ Ghoul)",
         variant: "destructive",
         duration: 7000,
       });
@@ -199,8 +236,8 @@ const Admin = () => {
     
     if (!wipeFormData.count) {
       toast({
-        title: "Error",
-        description: "Please enter a count value",
+        title: "ข้อผิดพลาด",
+        description: "โปรดกรอกจำนวน",
         variant: "destructive",
         duration: 7000,
       });
@@ -209,63 +246,81 @@ const Admin = () => {
     
     if (wipeFormData.faction === 'Ghoul' && !['Yoshimura', 'Kaneki'].includes(wipeFormData.clan)) {
       toast({
-        title: "Error",
-        description: "Invalid clan for Ghoul faction. Please select Yoshimura or Kaneki.",
+        title: "ข้อผิดพลาด",
+        description: "ตระกูลไม่ถูกต้องสำหรับฝ่าย Ghoul โปรดเลือก Yoshimura หรือ Kaneki",
         variant: "destructive",
         duration: 7000,
       });
       return;
     }
     
-    const storedData = localStorage.getItem('wipeData');
-    const wipeData = storedData ? JSON.parse(storedData) : [];
-    
-    const clanIndex = wipeData.findIndex((item: any) => 
-      item.clan === wipeFormData.clan && item.faction === wipeFormData.faction
-    );
-    
-    if (clanIndex >= 0) {
-      wipeData[clanIndex].count = parseInt(wipeFormData.count);
-    } else {
-      wipeData.push({
-        clan: wipeFormData.clan,
-        faction: wipeFormData.faction,
-        count: parseInt(wipeFormData.count)
+    try {
+      const storedData = localStorage.getItem('wipeData');
+      const wipeData = storedData ? JSON.parse(storedData) : [];
+      
+      const clanIndex = wipeData.findIndex((item: any) => 
+        item.clan === wipeFormData.clan && item.faction === wipeFormData.faction
+      );
+      
+      if (clanIndex >= 0) {
+        wipeData[clanIndex].count = parseInt(wipeFormData.count);
+      } else {
+        wipeData.push({
+          clan: wipeFormData.clan,
+          faction: wipeFormData.faction,
+          count: parseInt(wipeFormData.count)
+        });
+      }
+      
+      localStorage.setItem('wipeData', JSON.stringify(wipeData));
+      
+      toast({
+        title: "สำเร็จ",
+        description: `อัปเดตจำนวน ${wipeFormData.clan} เป็น ${wipeFormData.count}`,
+        duration: 5000,
+      });
+      
+      setWipeFormData({ 
+        clan: wipeFormData.clan, 
+        faction: wipeFormData.faction, 
+        count: '' 
+      });
+    } catch {
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถบันทึกข้อมูลตระกูลได้",
+        variant: "destructive",
+        duration: 7000,
       });
     }
-    
-    localStorage.setItem('wipeData', JSON.stringify(wipeData));
-    
-    toast({
-      title: "Success",
-      description: `Updated ${wipeFormData.clan} count to ${wipeFormData.count}`,
-      duration: 5000,
-    });
-    
-    setWipeFormData({ 
-      clan: wipeFormData.clan, 
-      faction: wipeFormData.faction, 
-      count: '' 
-    });
   };
 
   const handleIdSelect = (selectedId: string) => {
-    const idToEdit = savedIds.find(id => id.id === selectedId);
-    
-    if (idToEdit) {
-      setEditFormData({
-        selectedId,
-        id: idToEdit.id,
-        clan: idToEdit.clan,
-        faction: idToEdit.clan === 'Arima' || idToEdit.clan === 'Suzuya' ? 'CCG' : 'Ghoul',
-        kagune: idToEdit.kagune,
-        isKaguneV2: idToEdit.isKaguneV2,
-        rank: idToEdit.rank,
-        rc: idToEdit.rc.toString(),
-        gp: idToEdit.gp.toString(),
-        price: idToEdit.price.toString(),
-        link: idToEdit.link || 'https://www.facebook.com/is.Moyx',
-        isActive: idToEdit.isActive
+    try {
+      const idToEdit = savedIds.find(id => id.id === selectedId);
+      
+      if (idToEdit) {
+        setEditFormData({
+          selectedId,
+          id: idToEdit.id,
+          clan: idToEdit.clan,
+          faction: idToEdit.clan === 'Arima' || idToEdit.clan === 'Suzuya' ? 'CCG' : 'Ghoul',
+          kagune: idToEdit.kagune,
+          isKaguneV2: idToEdit.isKaguneV2,
+          rank: idToEdit.rank,
+          rc: idToEdit.rc.toString(),
+          gp: idToEdit.gp.toString(),
+          price: idToEdit.price.toString(),
+          link: idToEdit.link || 'https://www.facebook.com/is.Moyx',
+          isActive: idToEdit.isActive
+        });
+      }
+    } catch {
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถเลือก ID เพื่อแก้ไขได้",
+        variant: "destructive",
+        duration: 7000,
       });
     }
   };
@@ -275,8 +330,8 @@ const Admin = () => {
     
     if (editFormData.faction === 'None') {
       toast({
-        title: "Error",
-        description: "Please select a faction (CCG or Ghoul).",
+        title: "ข้อผิดพลาด",
+        description: "โปรดเลือกฝ่าย (CCG หรือ Ghoul)",
         variant: "destructive",
         duration: 7000,
       });
@@ -285,62 +340,71 @@ const Admin = () => {
     
     if (editFormData.faction === 'Ghoul' && !['Yoshimura', 'Kaneki'].includes(editFormData.clan)) {
       toast({
-        title: "Error",
-        description: "Invalid clan for Ghoul faction. Please select Yoshimura or Kaneki.",
+        title: "ข้อผิดพลาด",
+        description: "ตระกูลไม่ถูกต้องสำหรับฝ่าย Ghoul โปรดเลือก Yoshimura หรือ Kaneki",
         variant: "destructive",
         duration: 7000,
       });
       return;
     }
     
-    const storedData = localStorage.getItem('idData');
-    let idData = storedData ? JSON.parse(storedData) : [];
-    
-    const idIndex = idData.findIndex((item: IdData) => item.id === editFormData.selectedId);
-    
-    if (idIndex >= 0) {
-      idData[idIndex] = {
-        ...idData[idIndex],
-        id: editFormData.id,
-        clan: editFormData.clan,
-        kagune: editFormData.kagune,
-        isKaguneV2: editFormData.isKaguneV2,
-        rank: editFormData.rank,
-        rc: parseInt(editFormData.rc) || 0,
-        gp: parseInt(editFormData.gp) || 0,
-        price: parseInt(editFormData.price) || 0,
-        link: editFormData.link,
-        isActive: editFormData.isActive
-      };
+    try {
+      const storedData = localStorage.getItem('idData');
+      let idData = storedData ? JSON.parse(storedData) : [];
       
-      localStorage.setItem('idData', JSON.stringify(idData));
+      const idIndex = idData.findIndex((item: IdData) => item.id === editFormData.selectedId);
       
+      if (idIndex >= 0) {
+        idData[idIndex] = {
+          ...idData[idIndex],
+          id: editFormData.id,
+          clan: editFormData.clan,
+          kagune: editFormData.kagune,
+          isKaguneV2: editFormData.isKaguneV2,
+          rank: editFormData.rank,
+          rc: parseInt(editFormData.rc) || 0,
+          gp: parseInt(editFormData.gp) || 0,
+          price: parseInt(editFormData.price) || 0,
+          link: editFormData.link,
+          isActive: editFormData.isActive
+        };
+        
+        localStorage.setItem('idData', JSON.stringify(idData));
+        
+        toast({
+          title: "สำเร็จ",
+          description: `อัปเดต ID: ${editFormData.id}`,
+          duration: 5000,
+        });
+        
+        setSavedIds(idData);
+        
+        setEditFormData({
+          selectedId: '',
+          id: '',
+          clan: editFormData.clan,
+          faction: editFormData.faction,
+          kagune: editFormData.kagune,
+          isKaguneV2: false,
+          rank: '',
+          rc: '',
+          gp: '',
+          price: '',
+          link: '',
+          isActive: true
+        });
+      } else {
+        toast({
+          title: "ข้อผิดพลาด",
+          description: "ไม่พบ ID",
+          variant: "destructive",
+          duration: 7000,
+        });
+      }
+    } catch {
       toast({
-        title: "Success",
-        description: `Updated ID: ${editFormData.id}`,
-        duration: 5000,
-      });
-      
-      setSavedIds(idData);
-      
-      setEditFormData({
-        selectedId: '',
-        id: '',
-        clan: editFormData.clan,
-        faction: editFormData.faction,
-        kagune: editFormData.kagune,
-        isKaguneV2: false,
-        rank: '',
-        rc: '',
-        gp: '',
-        price: '',
-        link: '',
-        isActive: true
-      });
-    } else {
-      toast({
-        title: "Error",
-        description: "ID not found",
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถอัปเดตข้อมูล ID ได้",
         variant: "destructive",
         duration: 7000,
       });
@@ -350,27 +414,36 @@ const Admin = () => {
   const handleRemoveSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const storedData = localStorage.getItem('idData');
-    let idData = storedData ? JSON.parse(storedData) : [];
-    
-    const newIdData = idData.filter((item: IdData) => item.id !== removeId);
-    
-    if (newIdData.length < idData.length) {
-      localStorage.setItem('idData', JSON.stringify(newIdData));
+    try {
+      const storedData = localStorage.getItem('idData');
+      let idData = storedData ? JSON.parse(storedData) : [];
       
+      const newIdData = idData.filter((item: IdData) => item.id !== removeId);
+      
+      if (newIdData.length < idData.length) {
+        localStorage.setItem('idData', JSON.stringify(newIdData));
+        
+        toast({
+          title: "สำเร็จ",
+          description: `ลบ ID: ${removeId}`,
+          duration: 5000,
+        });
+        
+        setSavedIds(newIdData);
+        
+        setRemoveId('');
+      } else {
+        toast({
+          title: "ข้อผิดพลาด",
+          description: "ไม่พบ ID",
+          variant: "destructive",
+          duration: 7000,
+        });
+      }
+    } catch {
       toast({
-        title: "Success",
-        description: `Removed ID: ${removeId}`,
-        duration: 5000,
-      });
-      
-      setSavedIds(newIdData);
-      
-      setRemoveId('');
-    } else {
-      toast({
-        title: "Error",
-        description: "ID not found",
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถลบข้อมูล ID ได้",
         variant: "destructive",
         duration: 7000,
       });
@@ -378,13 +451,26 @@ const Admin = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('adminAuthenticated');
-    localStorage.removeItem('auth_client_hash');
-    localStorage.removeItem('auth_key_timestamp');
-    localStorage.removeItem('usedKeys');
-    setIsAuthenticated(false);
-    navigate('/');
+    try {
+      localStorage.removeItem('adminAuthenticated');
+      localStorage.removeItem('auth_client_hash');
+      localStorage.removeItem('auth_key_timestamp');
+      localStorage.removeItem('usedKeys');
+      setIsAuthenticated(false);
+      navigate('/', { replace: true });
+    } catch {
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถออกจากระบบได้ โปรดลองใหม่",
+        variant: "destructive",
+        duration: 7000,
+      });
+    }
   };
+
+  if (isAuthenticated === null) {
+    return null; // แสดงหน้าเปล่าขณะตรวจสอบ
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/admin-auth" replace />;
@@ -405,9 +491,9 @@ const Admin = () => {
       <div className="max-w-4xl mx-auto">
         <div className="mb-10 text-center">
           <h1 className="text-4xl font-bold text-white mb-2">
-            <span className="text-pink-300">Admin</span> Dashboard
+            <span className="text-pink-300">แอดมิน</span> แดชบอร์ด
           </h1>
-          <p className="text-glass-light">Add and manage ID data</p>
+          <p className="text-glass-light">เพิ่มและจัดการข้อมูล ID</p>
         </div>
 
         <div className="mb-6 text-right">
@@ -415,7 +501,7 @@ const Admin = () => {
             onClick={handleLogout}
             className="bg-glass-dark/40 text-pink-300 hover:bg-glass-dark/60 hover:text-pink-300 border border-pink-300/30 shadow-md transition-all duration-200"
           >
-            Logout
+            ออกจากระบบ
           </Button>
         </div>
 
@@ -423,16 +509,16 @@ const Admin = () => {
           <div className="flex justify-center mb-6">
             <TabsList className="bg-glass-dark/40 backdrop-blur-sm border border-pink-300/20 shadow-md">
               <TabsTrigger value="add-id" className="data-[state=active]:bg-pink-300/80 data-[state=active]:text-white">
-                Add ID
+                เพิ่ม ID
               </TabsTrigger>
               <TabsTrigger value="add-clan" className="data-[state=active]:bg-pink-300/80 data-[state=active]:text-white">
-                Add Clan ID
+                เพิ่มตระกูล ID
               </TabsTrigger>
               <TabsTrigger value="edit-id" className="data-[state=active]:bg-pink-300/80 data-[state=active]:text-white">
-                Edit ID
+                แก้ไข ID
               </TabsTrigger>
               <TabsTrigger value="remove-id" className="data-[state=active]:bg-pink-300/80 data-[state=active]:text-white">
-                Remove ID
+                ลบ ID
               </TabsTrigger>
             </TabsList>
           </div>
@@ -445,7 +531,7 @@ const Admin = () => {
                     <Label htmlFor="rc-id">ID</Label>
                     <Input 
                       id="rc-id" 
-                      placeholder="Enter ID" 
+                      placeholder="กรอก ID" 
                       className="glass-input border-pink-300/30 focus:border-pink-300/50"
                       value={rcFormData.id}
                       onChange={(e) => setRcFormData({...rcFormData, id: e.target.value})}
@@ -455,16 +541,16 @@ const Admin = () => {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="rc-faction">Faction</Label>
+                      <Label htmlFor="rc-faction">ฝ่าย</Label>
                       <Select 
                         value={rcFormData.faction}
                         onValueChange={(val) => handleFactionChange(val, 'add')}
                       >
                         <SelectTrigger className="glass-input border-pink-300/30">
-                          <SelectValue placeholder="Select Faction" />
+                          <SelectValue placeholder="เลือกฝ่าย" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="None">None</SelectItem>
+                          <SelectItem value="None">ไม่มี</SelectItem>
                           <SelectItem value="CCG">CCG</SelectItem>
                           <SelectItem value="Ghoul">Ghoul</SelectItem>
                         </SelectContent>
@@ -472,7 +558,7 @@ const Admin = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="rc-clan">Clan</Label>
+                      <Label htmlFor="rc-clan">ตระกูล</Label>
                       <Select 
                         key={rcFormData.faction}
                         value={rcFormData.clan}
@@ -484,7 +570,7 @@ const Admin = () => {
                         disabled={rcFormData.faction === 'None'}
                       >
                         <SelectTrigger className="glass-input border-pink-300/30">
-                          <SelectValue placeholder="Select Clan" />
+                          <SelectValue placeholder="เลือกตระกูล" />
                         </SelectTrigger>
                         <SelectContent>
                           {rcFormData.faction !== 'None' && clans[rcFormData.faction]?.map((clan) => (
@@ -497,10 +583,10 @@ const Admin = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="rc-kagune">Kagune</Label>
+                      <Label htmlFor="rc-kagune">คากุเนะ</Label>
                       <Input 
                         id="rc-kagune" 
-                        placeholder="Enter Kagune" 
+                        placeholder="กรอกคากุเนะ" 
                         className="glass-input border-pink-300/30 focus:border-pink-300/50"
                         value={rcFormData.kagune}
                         onChange={(e) => setRcFormData({...rcFormData, kagune: e.target.value})}
@@ -509,13 +595,13 @@ const Admin = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="rc-rank">Rank</Label>
+                      <Label htmlFor="rc-rank">อันดับ</Label>
                       <Select 
                         value={rcFormData.rank}
                         onValueChange={(val) => setRcFormData({...rcFormData, rank: val})}
                       >
                         <SelectTrigger className="glass-input border-pink-300/30">
-                          <SelectValue placeholder="Select Rank" />
+                          <SelectValue placeholder="เลือกอันดับ" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="SSS">SSS</SelectItem>
@@ -546,17 +632,17 @@ const Admin = () => {
                       htmlFor="kaguneV2"
                       className="text-sm text-glass-light cursor-pointer"
                     >
-                      Has Kagune V2
+                      มีคากุเนะ V2
                     </Label>
                   </div>
                   
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="rc-rc">RC Value</Label>
+                      <Label htmlFor="rc-rc">ค่า RC</Label>
                       <Input 
                         id="rc-rc" 
                         type="number"
-                        placeholder="RC Value" 
+                        placeholder="ค่า RC" 
                         className="glass-input border-pink-300/30 focus:border-pink-300/50"
                         value={rcFormData.rc}
                         onChange={(e) => setRcFormData({...rcFormData, rc: e.target.value})}
@@ -565,11 +651,11 @@ const Admin = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="rc-gp">GP Value</Label>
+                      <Label htmlFor="rc-gp">ค่า GP</Label>
                       <Input 
                         id="rc-gp" 
                         type="number"
-                        placeholder="GP Value" 
+                        placeholder="ค่า GP" 
                         className="glass-input border-pink-300/30 focus:border-pink-300/50"
                         value={rcFormData.gp}
                         onChange={(e) => setRcFormData({...rcFormData, gp: e.target.value})}
@@ -578,11 +664,11 @@ const Admin = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="rc-price">Price ($)</Label>
+                      <Label htmlFor="rc-price">ราคา ($)</Label>
                       <Input 
                         id="rc-price" 
                         type="number"
-                        placeholder="Price" 
+                        placeholder="ราคา" 
                         className="glass-input border-pink-300/30 focus:border-pink-300/50"
                         value={rcFormData.price}
                         onChange={(e) => setRcFormData({...rcFormData, price: e.target.value})}
@@ -592,10 +678,10 @@ const Admin = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="rc-link">Buy Link</Label>
+                    <Label htmlFor="rc-link">ลิงก์ซื้อ</Label>
                     <Input 
                       id="rc-link" 
-                      placeholder="Enter link" 
+                      placeholder="กรอกลิงก์" 
                       className="glass-input border-pink-300/30 focus:border-pink-300/50"
                       value={rcFormData.link}
                       onChange={(e) => setRcFormData({...rcFormData, link: e.target.value})}
@@ -606,7 +692,7 @@ const Admin = () => {
                     type="submit" 
                     className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-md transition-all duration-200"
                   >
-                    Add ID
+                    เพิ่ม ID
                   </Button>
                 </form>
               </GlassCard>
@@ -616,16 +702,16 @@ const Admin = () => {
               <GlassCard className="border border-pink-300/30 shadow-md">
                 <form onSubmit={handleWipeSubmit} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="wipe-faction">Faction</Label>
+                    <Label htmlFor="wipe-faction">ฝ่าย</Label>
                     <Select 
                       value={wipeFormData.faction}
                       onValueChange={(val) => handleFactionChange(val, 'wipe')}
                     >
                       <SelectTrigger className="glass-input border-pink-300/30">
-                        <SelectValue placeholder="Select Faction" />
+                        <SelectValue placeholder="เลือกฝ่าย" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="None">None</SelectItem>
+                        <SelectItem value="None">ไม่มี</SelectItem>
                         <SelectItem value="CCG">CCG</SelectItem>
                         <SelectItem value="Ghoul">Ghoul</SelectItem>
                       </SelectContent>
@@ -633,7 +719,7 @@ const Admin = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="wipe-clan">Clan</Label>
+                    <Label htmlFor="wipe-clan">ตระกูล</Label>
                     <Select 
                       key={wipeFormData.faction}
                       value={wipeFormData.clan}
@@ -645,7 +731,7 @@ const Admin = () => {
                       disabled={wipeFormData.faction === 'None'}
                     >
                       <SelectTrigger className="glass-input border-pink-300/30">
-                        <SelectValue placeholder="Select Clan" />
+                        <SelectValue placeholder="เลือกตระกูล" />
                       </SelectTrigger>
                       <SelectContent>
                         {wipeFormData.faction !== 'None' && clans[wipeFormData.faction]?.map((clan) => (
@@ -656,11 +742,11 @@ const Admin = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="wipe-count">Count</Label>
+                    <Label htmlFor="wipe-count">จำนวน</Label>
                     <Input 
                       id="wipe-count" 
                       type="number"
-                      placeholder="Enter Count" 
+                      placeholder="กรอกจำนวน" 
                       className="glass-input border-pink-300/30 focus:border-pink-300/50"
                       value={wipeFormData.count}
                       onChange={(e) => setWipeFormData({...wipeFormData, count: e.target.value})}
@@ -672,7 +758,7 @@ const Admin = () => {
                     type="submit" 
                     className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-md transition-all duration-200"
                   >
-                    Update Clan Count
+                    อัปเดตจำนวนตระกูล
                   </Button>
                 </form>
               </GlassCard>
@@ -682,13 +768,13 @@ const Admin = () => {
               <GlassCard className="border border-pink-300/30 shadow-md">
                 <form onSubmit={handleEditSubmit} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="edit-select-id">Select ID to Edit</Label>
+                    <Label htmlFor="edit-select-id">เลือก ID เพื่อแก้ไข</Label>
                     <Select 
                       value={editFormData.selectedId}
                       onValueChange={handleIdSelect}
                     >
                       <SelectTrigger className="glass-input border-pink-300/30">
-                        <SelectValue placeholder="Select ID" />
+                        <SelectValue placeholder="เลือก ID" />
                       </SelectTrigger>
                       <SelectContent>
                         {savedIds.map((id) => (
@@ -706,7 +792,7 @@ const Admin = () => {
                         <Label htmlFor="edit-id">ID</Label>
                         <Input 
                           id="edit-id" 
-                          placeholder="Enter ID" 
+                          placeholder="กรอก ID" 
                           className="glass-input border-pink-300/30 focus:border-pink-300/50"
                           value={editFormData.id}
                           onChange={(e) => setEditFormData({...editFormData, id: e.target.value})}
@@ -716,16 +802,16 @@ const Admin = () => {
                       
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="edit-faction">Faction</Label>
+                          <Label htmlFor="edit-faction">ฝ่าย</Label>
                           <Select 
                             value={editFormData.faction}
                             onValueChange={(val) => handleFactionChange(val, 'edit')}
                           >
                             <SelectTrigger className="glass-input border-pink-300/30">
-                              <SelectValue placeholder="Select Faction" />
+                              <SelectValue placeholder="เลือกฝ่าย" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="None">None</SelectItem>
+                              <SelectItem value="None">ไม่มี</SelectItem>
                               <SelectItem value="CCG">CCG</SelectItem>
                               <SelectItem value="Ghoul">Ghoul</SelectItem>
                             </SelectContent>
@@ -733,7 +819,7 @@ const Admin = () => {
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor="edit-clan">Clan</Label>
+                          <Label htmlFor="edit-clan">ตระกูล</Label>
                           <Select 
                             key={editFormData.faction}
                             value={editFormData.clan}
@@ -745,7 +831,7 @@ const Admin = () => {
                             disabled={editFormData.faction === 'None'}
                           >
                             <SelectTrigger className="glass-input border-pink-300/30">
-                              <SelectValue placeholder="Select Clan" />
+                              <SelectValue placeholder="เลือกตระกูล" />
                             </SelectTrigger>
                             <SelectContent>
                               {editFormData.faction !== 'None' && clans[editFormData.faction]?.map((clan) => (
@@ -758,10 +844,10 @@ const Admin = () => {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="edit-kagune">Kagune</Label>
+                          <Label htmlFor="edit-kagune">คากุเนะ</Label>
                           <Input 
                             id="edit-kagune" 
-                            placeholder="Enter Kagune" 
+                            placeholder="กรอกคากุเนะ" 
                             className="glass-input border-pink-300/30 focus:border-pink-300/50"
                             value={editFormData.kagune}
                             onChange={(e) => setEditFormData({...editFormData, kagune: e.target.value})}
@@ -770,13 +856,13 @@ const Admin = () => {
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor="edit-rank">Rank</Label>
+                          <Label htmlFor="edit-rank">อันดับ</Label>
                           <Select 
                             value={editFormData.rank}
                             onValueChange={(val) => setEditFormData({...editFormData, rank: val})}
                           >
                             <SelectTrigger className="glass-input border-pink-300/30">
-                              <SelectValue placeholder="Select Rank" />
+                              <SelectValue placeholder="เลือกอันดับ" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="SSS">SSS</SelectItem>
@@ -807,17 +893,17 @@ const Admin = () => {
                           htmlFor="edit-kaguneV2"
                           className="text-sm text-glass-light cursor-pointer"
                         >
-                          Has Kagune V2
+                          มีคากุเนะ V2
                         </Label>
                       </div>
                       
                       <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="edit-rc">RC Value</Label>
+                          <Label htmlFor="edit-rc">ค่า RC</Label>
                           <Input 
                             id="edit-rc" 
                             type="number"
-                            placeholder="RC Value" 
+                            placeholder="ค่า RC" 
                             className="glass-input border-pink-300/30 focus:border-pink-300/50"
                             value={editFormData.rc}
                             onChange={(e) => setEditFormData({...editFormData, rc: e.target.value})}
@@ -826,11 +912,11 @@ const Admin = () => {
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor="edit-gp">GP Value</Label>
+                          <Label htmlFor="edit-gp">ค่า GP</Label>
                           <Input 
                             id="edit-gp" 
                             type="number"
-                            placeholder="GP Value" 
+                            placeholder="ค่า GP" 
                             className="glass-input border-pink-300/30 focus:border-pink-300/50"
                             value={editFormData.gp}
                             onChange={(e) => setEditFormData({...editFormData, gp: e.target.value})}
@@ -839,11 +925,11 @@ const Admin = () => {
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor="edit-price">Price ($)</Label>
+                          <Label htmlFor="edit-price">ราคา ($)</Label>
                           <Input 
                             id="edit-price" 
                             type="number"
-                            placeholder="Price" 
+                            placeholder="ราคา" 
                             className="glass-input border-pink-300/30 focus:border-pink-300/50"
                             value={editFormData.price}
                             onChange={(e) => setEditFormData({...editFormData, price: e.target.value})}
@@ -853,10 +939,10 @@ const Admin = () => {
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor="edit-link">Buy Link</Label>
+                        <Label htmlFor="edit-link">ลิงก์ซื้อ</Label>
                         <Input 
                           id="edit-link" 
-                          placeholder="Enter link" 
+                          placeholder="กรอกลิงก์" 
                           className="glass-input border-pink-300/30 focus:border-pink-300/50"
                           value={editFormData.link}
                           onChange={(e) => setEditFormData({...editFormData, link: e.target.value})}
@@ -867,7 +953,7 @@ const Admin = () => {
                         type="submit" 
                         className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-md transition-all duration-200"
                       >
-                        Update ID
+                        อัปเดต ID
                       </Button>
                     </>
                   )}
@@ -879,13 +965,13 @@ const Admin = () => {
               <GlassCard className="border border-pink-300/30 shadow-md">
                 <form onSubmit={handleRemoveSubmit} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="remove-id">Select ID to Remove</Label>
+                    <Label htmlFor="remove-id">เลือก ID เพื่อลบ</Label>
                     <Select 
                       value={removeId}
                       onValueChange={setRemoveId}
                     >
                       <SelectTrigger className="glass-input border-pink-300/30">
-                        <SelectValue placeholder="Select ID" />
+                        <SelectValue placeholder="เลือก ID" />
                       </SelectTrigger>
                       <SelectContent>
                         {savedIds.map((id) => (
@@ -902,7 +988,7 @@ const Admin = () => {
                     className="w-full bg-red-500/80 hover:bg-red-500 text-white border border-red-300/30 shadow-md transition-all duration-200"
                     disabled={!removeId}
                   >
-                    Remove Selected ID
+                    ลบ ID ที่เลือก
                   </Button>
                 </form>
               </GlassCard>
