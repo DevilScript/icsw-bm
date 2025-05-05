@@ -58,7 +58,7 @@ const Admin = () => {
 
     const checkAuth = () => {
       try {
-        const isAuth = sessionStorage.getItem('adminAuthenticated') === 'true';
+        const isAuth = localStorage.getItem('adminAuthenticated') === 'true';
         setIsAuthenticated(isAuth);
         if (isAuth) {
           clearInterval(intervalId);
@@ -449,10 +449,10 @@ const Admin = () => {
 
   const handleLogout = () => {
     try {
-      sessionStorage.removeItem('adminAuthenticated');
-      sessionStorage.removeItem('auth_client_hash');
-      sessionStorage.removeItem('auth_key_timestamp');
-      sessionStorage.removeItem('usedKeys');
+      localStorage.removeItem('adminAuthenticated');
+      localStorage.removeItem('auth_client_hash');
+      localStorage.removeItem('auth_key_timestamp');
+      localStorage.removeItem('usedKeys');
       setIsAuthenticated(false);
       navigate('/', { replace: true });
     } catch {
