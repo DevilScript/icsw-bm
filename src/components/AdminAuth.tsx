@@ -13,14 +13,21 @@ const AdminAuth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Check authentication status on mount
   useEffect(() => {
-    if (sessionStorage.getItem('adminAuthenticated') !== 'true') {
+    const isAuthenticated = sessionStorage.getItem('adminAuthenticated') === 'true';
+    console.log('AdminAuth: isAuthenticated on mount:', isAuthenticated);
+    if (isAuthenticated) {
+      console.log('Already authenticated, navigating to /admin');
+      navigate('/admin', { replace: true });
+    } else {
       toast({
         title: "Authentication Required",
         description: "Please enter the authentication key to access the admin dashboard.",
+        duration: 5000,
       });
     }
-  }, []);
+  }, [navigate, toast]);
 
   const generateRandomKey = (): string => {
     const array = new Uint8Array(32);
@@ -33,12 +40,18 @@ const AdminAuth = () => {
     console.log('Webhook URL:', webhookUrl);
 
     if (!webhookUrl) {
+      console.error('Discord webhook URL is not configured');
       toast({
         title: "Configuration Error",
         description: "Discord webhook URL is missing. Please contact support.",
         variant: "destructive",
+        duration: 7000,
       });
-      return;
+      // Clear sessionStorage to prevent inconsistent state
+      sessionStorage.removeItem('auth_client_hash');
+      sessionStorage.removeItem('auth_key_timestamp');
+      sessionStorage.removeItem('adminAuthenticated');
+      return false;
     }
 
     try {
@@ -58,31 +71,43 @@ const AdminAuth = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send key to Discord');
+        throw new Error(`Failed to send key to Discord: ${response.statusText}`);
       }
 
       sessionStorage.setItem('auth_client_hash', securityInfo.clientHash);
       sessionStorage.setItem('auth_key_timestamp', securityInfo.timestamp);
+      console.log('Stored auth_client_hash:', securityInfo.clientHash);
+      return true;
     } catch (error) {
       console.error('Failed to send key to Discord:', error);
       toast({
         title: "Error",
-        description: "Failed to send key to Discord. Please try again.",
+        description: "Failed to send key to Discord. Please try again or contact support.",
         variant: "destructive",
+        duration: 7000,
       });
+      // Clear sessionStorage to prevent inconsistent state
+      sessionStorage.removeItem('auth_client_hash');
+      sessionStorage.removeItem('auth_key_timestamp');
+      sessionStorage.removeItem('adminAuthenticated');
+      return false;
     }
   };
 
-  const handleGetKey = () => {
+  const handleGetKey = async () => {
     const newKey = generateRandomKey();
     setAdminKey(newKey);
     setKeyGenerated(true);
-    sendKeyToDiscord(newKey);
+    const success = await sendKeyToDiscord(newKey);
     console.log('Generated Key:', newKey);
-    toast({
-      title: "New Key Generated",
-      description: "A new authentication key has been sent to Discord.",
-    });
+    console.log('Key Generated State:', true);
+    if (success) {
+      toast({
+        title: "New Key Generated",
+        description: "A new authentication key has been sent to Discord. Please check and enter it below.",
+        duration: 7000,
+      });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -102,7 +127,15 @@ const AdminAuth = () => {
         title: "Security Alert",
         description: "Client verification failed. Please get a new key.",
         variant: "destructive",
+        duration: 7000,
       });
+      // Clear sessionStorage and reset state
+      sessionStorage.removeItem('auth_client_hash');
+      sessionStorage.removeItem('auth_key_timestamp');
+      sessionStorage.removeItem('adminAuthenticated');
+      setKeyGenerated(false);
+      setAdminKey('');
+      setInputKey('');
       return;
     }
 
@@ -110,19 +143,25 @@ const AdminAuth = () => {
       sessionStorage.setItem('adminAuthenticated', 'true');
       console.log('Authentication successful, adminAuthenticated set:', sessionStorage.getItem('adminAuthenticated'));
       console.log('Navigating to /admin');
-      navigate('/admin');
+      toast({
+        title: "Access Granted",
+        description: "Welcome to the admin dashboard!",
+        duration: 5000,
+      });
+      navigate('/admin', { replace: true });
     } else {
       toast({
-        title: "Access denied",
-        description: "Invalid authentication key",
+        title: "Access Denied",
+        description: "Invalid authentication key. Please try again or get a new key.",
         variant: "destructive",
+        duration: 7000,
       });
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen px-4 py-8">
-      <GlassCard className="max-w-md w-full animate-float">
+    <div className="flex items-center justify-center min-h-screen px-4 py-8 bg-glass-dark">
+      <GlassCard className="max-w-md w-full animate-float border border-pink-300/30 shadow-lg shadow-pink-500/10">
         <div className="flex flex-col items-center mb-6">
           <div className="h-16 w-16 rounded-full bg-pink-300/20 backdrop-blur-sm flex items-center justify-center mb-4 animate-pulse-glow border border-pink-300/30">
             <Key size={28} className="text-pink-300" />
@@ -133,7 +172,7 @@ const AdminAuth = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             type="password"
-            placeholder="Enter Key"
+            placeholder="Enter Authentication Key"
             className="glass-input border-pink-300/30 focus:border-pink-400/50 text-center"
             value={inputKey}
             onChange={(e) => setInputKey(e.target.value)}
@@ -145,7 +184,11 @@ const AdminAuth = () => {
             </p>
           )}
           <div className="flex gap-2">
-            <Button type="button" onClick={handleGetKey} className="flex-1 button-3d">
+            <Button
+              type="button"
+              onClick={handleGetKey}
+              className="flex-1 bg-glass-dark/40 text-pink-300 hover:bg-glass-dark/60 border border-pink-300/30 transition-all duration-300"
+            >
               Get Key
             </Button>
             <Button
