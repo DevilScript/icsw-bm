@@ -23,6 +23,7 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/contributors" element={<Contributors />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/admin-auth" element={<AdminAuth />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
