@@ -19,67 +19,35 @@ const IdDetails = () => {
   const [idData, setIdData] = useState<IdData[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  
+
   useEffect(() => {
     const loadIdData = () => {
       const storedData = localStorage.getItem('idData');
-      let parsedData: IdData[] = [];
-      
+      let data: IdData[] = [];
+
       if (storedData) {
         try {
-          parsedData = JSON.parse(storedData);
-          parsedData = parsedData.map(item => ({
+          data = JSON.parse(storedData);
+          data = data.map(item => ({
             ...item,
             link: item.link && isValidUrl(item.link) ? item.link : 'https://www.facebook.com/is.Moyx'
           }));
-          console.log('Loaded idData from localStorage:', parsedData);
+          console.log('Loaded idData from localStorage:', data);
         } catch (error) {
           console.error('Error parsing idData from localStorage:', error);
           toast({
             title: "Error",
             description: "Failed to load ID data.",
-            variant: "destructive"
+            variant: "destructive",
+            duration: 7000,
           });
         }
       }
-      
-      if (parsedData.length === 0) {
-        const sampleData: IdData[] = [
-          {
-            id: "TG-1001",
-            clan: "Arima",
-            kagune: "Quinque",
-            isKaguneV2: false,
-            rank: "S+",
-            rc: 9500,
-            gp: 20000,
-            price: 150,
-            isActive: true,
-            link: "https://www.facebook.com/is.Moyx"
-          },
-          {
-            id: "TG-1002",
-            clan: "Yoshimura",
-            kagune: "Ukaku",
-            isKaguneV2: true,
-            rank: "SS",
-            rc: 12000,
-            gp: 30000,
-            price: 150,
-            isActive: true,
-            link: "https://www.facebook.com/is.Moyx"
-          }
-        ];
-        
-        localStorage.setItem('idData', JSON.stringify(sampleData));
-        parsedData = sampleData;
-        console.log('Initialized idData with sample data:', parsedData);
-      }
-      
-      setIdData(parsedData.filter(item => item.isActive));
+
+      setIdData(data.filter(item => item.isActive));
       setLoading(false);
     };
-    
+
     loadIdData();
   }, [toast]);
 
@@ -99,7 +67,7 @@ const IdDetails = () => {
       </GlassCard>
     );
   }
-  
+
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {idData.length === 0 ? (
@@ -108,20 +76,20 @@ const IdDetails = () => {
         </div>
       ) : (
         idData.map((data) => (
-          <GlassCard 
-            key={data.id} 
+          <GlassCard
+            key={data.id}
             className="relative overflow-visible border border-pink-300/30 shadow-lg shadow-pink-500/10 bordered-glow"
           >
             <div className="mb-4">
               <h3 className="text-xl font-bold text-white">{data.id}</h3>
             </div>
-            
+
             <div className="space-y-2 mb-6">
               <div className="flex justify-between items-center">
                 <span className="text-glass-light">Clan:</span>
                 <span className="font-medium text-white">{data.clan}</span>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-glass-light">Kagune:</span>
                 <span className="font-medium text-white">
@@ -133,23 +101,23 @@ const IdDetails = () => {
                   )}
                 </span>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-glass-light">Rank:</span>
                 <span className="font-medium text-pink-300">{data.rank}</span>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-glass-light">RC:</span>
                 <span className="font-medium text-white">{data.rc.toLocaleString()}M</span>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-glass-light">GP:</span>
                 <span className="font-medium text-white">{data.gp.toLocaleString()}</span>
               </div>
             </div>
-            
+
             <div className="flex justify-between items-center mt-4 gap-4">
               {data.link && isValidUrl(data.link) ? (
                 <a
@@ -168,7 +136,7 @@ const IdDetails = () => {
               ) : (
                 <span className="text-glass-light text-sm">No purchase link available</span>
               )}
-              
+
               <div className="min-w-[60px] bg-pink-300/20 px-4 py-1.5 rounded-full border border-pink-300/30 hover:bg-pink-300/30 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-pink-300/20 text-center">
                 <span className="text-pink-300 font-bold text-sm">${data.price}</span>
               </div>
