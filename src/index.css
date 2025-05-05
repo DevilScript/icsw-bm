@@ -1,0 +1,127 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 330 80% 85%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 10%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 5% 10%;
+    --muted-foreground: 240 5% 65%;
+
+    --accent: 330 80% 85%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 40.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 330 40% 50%;
+    --input: 240 5% 26%;
+    --ring: 330 80% 85%;
+
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background-color: #171717;
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-glass-dark/30 backdrop-blur-md border border-pink-300/20 rounded-xl shadow-lg transition-all duration-300;
+  }
+  
+  .glass-input {
+    @apply bg-glass-dark/40 backdrop-blur-sm border border-pink-300/25 rounded-lg text-white placeholder:text-glass-light/50 focus:ring-2 focus:ring-pink-400/50 focus:border-pink-400/50 focus:outline-none transition-all duration-300;
+  }
+  
+  .status-active {
+    @apply text-green-400 flex items-center animate-pulse-glow;
+  }
+  
+  .status-inactive {
+    @apply text-red-400 flex items-center;
+  }
+  
+  .glow {
+    box-shadow: 0 0 10px rgba(255, 182, 213, 0.7), 0 0 20px rgba(255, 182, 213, 0.3);
+  }
+  
+  .button-3d {
+    @apply relative bg-gradient-to-br from-pink-300 to-pink-400 text-white px-4 py-2 rounded-lg shadow-lg transform transition-all duration-200 hover:-translate-y-1 hover:shadow-xl active:translate-y-0 active:shadow-md;
+  }
+  
+  .button-3d::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(255,255,255,0));
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .kagune-v2 {
+    @apply inline-flex items-center;
+  }
+
+  .kagune-v2::after {
+    content: 'v2';
+    @apply ml-2 text-xs font-semibold bg-green-300/20 text-green-300 px-2 py-0.5 rounded-full;
+  }
+
+  .bordered-glow {
+    @apply relative overflow-hidden;
+  }
+  
+  .bordered-glow::after {
+    content: '';
+    @apply absolute inset-0 border border-pink-300/30 rounded-xl;
+    animation: border-glow 2s infinite;
+  }
+}
+
+@keyframes border-pulse {
+  0%, 100% {
+    border-color: rgba(255, 182, 213, 0.3);
+  }
+  50% {
+    border-color: rgba(255, 182, 213, 0.8);
+  }
+}
+
+@keyframes border-glow {
+  0%, 100% {
+    opacity: 0.3;
+    box-shadow: 0 0 5px rgba(255, 182, 213, 0.3);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 15px rgba(255, 182, 213, 0.5);
+  }
+}
