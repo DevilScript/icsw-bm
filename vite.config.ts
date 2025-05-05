@@ -11,12 +11,20 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === 'development' &&
-    componentTagger(),
+    mode === "development" && componentTagger(),
   ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  base: "/", // เพิ่ม base สำหรับ Netlify
+  build: {
+    outDir: "dist", // ระบุ output directory ให้ชัดเจน
+    sourcemap: true, // เปิด sourcemap เพื่อ debug ง่ายขึ้น
+    rollupOptions: {
+      // กรณี Rollup มีปัญหาเรื่อง external imports
+      external: mode === "production" ? [] : ["/src/main.tsx"],
     },
   },
 }));
