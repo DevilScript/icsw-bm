@@ -9,7 +9,7 @@ import GlassCard from '@/components/GlassCard';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { IdData } from '@/components/IdDetails';
-import { db, auth, signIn } from './firebase';
+import { db, auth, signIn } from './lib/firebase';
 import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 
 const Admin = () => {
