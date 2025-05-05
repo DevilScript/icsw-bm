@@ -101,13 +101,14 @@ const AdminAuth = () => {
     
     if (inputKey === adminKey && keyGenerated) {
       sessionStorage.setItem('adminAuthenticated', 'true');
+      console.log('Authentication successful, adminAuthenticated set:', sessionStorage.getItem('adminAuthenticated'));
       toast({
         title: "Access granted",
         description: "Welcome to the admin dashboard",
       });
       
-      // Force a page refresh to load the admin panel
-      window.location.href = '/admin';
+      // Use navigate instead of window.location.href
+      navigate('/admin');
     } else {
       toast({
         title: "Access denied",
@@ -120,7 +121,7 @@ const AdminAuth = () => {
   return (
     <div className="flex items-center justify-center min-h-screen px-4 py-8">
       <GlassCard className="max-w-md w-full animate-float">
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center mb-6">
           <div className="h-16 w-16 rounded-full bg-pink-300/20 backdrop-blur-sm flex items-center justify-center mb-4 animate-pulse-glow border border-pink-300/30">
             <Key size={28} className="text-pink-300" />
           </div>
