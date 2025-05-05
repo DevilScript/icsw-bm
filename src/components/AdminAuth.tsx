@@ -13,15 +13,26 @@ const AdminAuth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Generate a random key function
+  // Generate a cryptographically secure random key
   const generateRandomKey = (): string => {
-    return Math.random().toString(36).substring(2, 15) + 
-           Math.random().toString(36).substring(2, 15);
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => ('0' + byte.toString(16)).slice(-2)).join('');
   };
 
   // Send key to Discord webhook with additional security
   const sendKeyToDiscord = async (key: string) => {
-    const webhookUrl = 'https://discord.com/api/webhooks/1368789991685095456/sr3yEJHbeHM6Tfz58OgjOclrlWo3nHN_pi_2fXqjHg-7ldR0wbo1JIptphWbzCeCQdDK';
+    const webhookUrl = import.meta.env.VITE_DISCORD_WEBHOOK_URL;
+    
+    if (!webhookUrl) {
+      console.error('Discord webhook URL is not configured');
+      toast({
+        title: "Configuration Error",
+        description: "Discord webhook URL is missing. Please contact support.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
       // Add timestamp and client information for security
@@ -32,7 +43,7 @@ const AdminAuth = () => {
         clientHash: btoa(navigator.userAgent + window.screen.width + window.screen.height)
       };
       
-      await fetch(webhookUrl, {
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -42,11 +53,20 @@ const AdminAuth = () => {
         }),
       });
       
-      // Store client hash with the key for verification
-      localStorage.setItem('auth_client_hash', securityInfo.clientHash);
-      localStorage.setItem('auth_key_timestamp', securityInfo.timestamp);
+      if (!response.ok) {
+        throw new Error('Failed to send key to Discord');
+      }
+      
+      // Store client hash with the key for verification in sessionStorage
+      sessionStorage.setItem('auth_client_hash', securityInfo.clientHash);
+      sessionStorage.setItem('auth_key_timestamp', securityInfo.timestamp);
     } catch (error) {
       console.error('Failed to send key to Discord:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send key to Discord. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -66,7 +86,7 @@ const AdminAuth = () => {
     e.preventDefault();
     
     // Get stored client hash for verification
-    const storedClientHash = localStorage.getItem('auth_client_hash');
+    const storedClientHash = sessionStorage.getItem('auth_client_hash');
     const currentHash = btoa(navigator.userAgent + window.screen.width + window.screen.height);
     
     // Security check - verify client hasn't changed
@@ -80,7 +100,7 @@ const AdminAuth = () => {
     }
     
     if (inputKey === adminKey && keyGenerated) {
-      localStorage.setItem('adminAuthenticated', 'true');
+      sessionStorage.setItem('adminAuthenticated', 'true');
       toast({
         title: "Access granted",
         description: "Welcome to the admin dashboard",
