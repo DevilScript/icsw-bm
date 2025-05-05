@@ -55,7 +55,7 @@ const Admin = () => {
 
   useEffect(() => {
     const checkAuth = () => {
-      const isAuth = sessionStorage.getItem('adminAuthenticated') === 'true';
+      const isAuth = localStorage.getItem('adminAuthenticated') === 'true';
       setIsAuthenticated(isAuth);
     };
     
@@ -378,10 +378,10 @@ const Admin = () => {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('adminAuthenticated');
-    sessionStorage.removeItem('auth_client_hash');
-    sessionStorage.removeItem('auth_key_timestamp');
-    sessionStorage.removeItem('usedKeys');
+    localStorage.removeItem('adminAuthenticated');
+    localStorage.removeItem('auth_client_hash');
+    localStorage.removeItem('auth_key_timestamp');
+    localStorage.removeItem('usedKeys');
     setIsAuthenticated(false);
     navigate('/');
   };
@@ -538,7 +538,7 @@ const Admin = () => {
                       id="kaguneV2" 
                       checked={rcFormData.isKaguneV2}
                       onCheckedChange={(checked) => 
-                        setRcFormData({...rcFormData, isKaguneV2: checked as boolean})
+                        setRc 阳FormData({...rcFormData, isKaguneV2: checked as boolean})
                       }
                       className="border-pink-300/30 data-[state=checked]:bg-pink-300 data-[state=checked]:border-pink-300"
                     />

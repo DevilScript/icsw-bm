@@ -16,7 +16,7 @@ const AdminAuth = () => {
 
   useEffect(() => {
     const checkAuth = setTimeout(() => {
-      if (sessionStorage.getItem('adminAuthenticated') === 'true') {
+      if (localStorage.getItem('adminAuthenticated') === 'true') {
         navigate('/admin', { replace: true });
       } else {
         toast({
@@ -46,10 +46,10 @@ const AdminAuth = () => {
         variant: "destructive",
         duration: 7000,
       });
-      sessionStorage.removeItem('auth_client_hash');
-      sessionStorage.removeItem('auth_key_timestamp');
-      sessionStorage.removeItem('adminAuthenticated');
-      sessionStorage.removeItem('usedKeys');
+      localStorage.removeItem('auth_client_hash');
+      localStorage.removeItem('auth_key_timestamp');
+      localStorage.removeItem('adminAuthenticated');
+      localStorage.removeItem('usedKeys');
       return false;
     }
 
@@ -73,8 +73,8 @@ const AdminAuth = () => {
         throw new Error('Failed to send key to Discord');
       }
 
-      sessionStorage.setItem('auth_client_hash', securityInfo.clientHash);
-      sessionStorage.setItem('auth_key_timestamp', securityInfo.timestamp);
+      localStorage.setItem('auth_client_hash', securityInfo.clientHash);
+      localStorage.setItem('auth_key_timestamp', securityInfo.timestamp);
       return true;
     } catch {
       toast({
@@ -83,10 +83,10 @@ const AdminAuth = () => {
         variant: "destructive",
         duration: 7000,
       });
-      sessionStorage.removeItem('auth_client_hash');
-      sessionStorage.removeItem('auth_key_timestamp');
-      sessionStorage.removeItem('adminAuthenticated');
-      sessionStorage.removeItem('usedKeys');
+      localStorage.removeItem('auth_client_hash');
+      localStorage.removeItem('auth_key_timestamp');
+      localStorage.removeItem('adminAuthenticated');
+      localStorage.removeItem('usedKeys');
       return false;
     }
   };
@@ -113,9 +113,9 @@ const AdminAuth = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const storedClientHash = sessionStorage.getItem('auth_client_hash');
+    const storedClientHash = localStorage.getItem('auth_client_hash');
     const currentHash = btoa(navigator.userAgent + window.screen.width + window.screen.height);
-    const usedKeys = JSON.parse(sessionStorage.getItem('usedKeys') || '[]');
+    const usedKeys = JSON.parse(localStorage.getItem('usedKeys') || '[]');
 
     if (storedClientHash && storedClientHash !== currentHash) {
       toast({
@@ -124,10 +124,10 @@ const AdminAuth = () => {
         variant: "destructive",
         duration: 7000,
       });
-      sessionStorage.removeItem('auth_client_hash');
-      sessionStorage.removeItem('auth_key_timestamp');
-      sessionStorage.removeItem('adminAuthenticated');
-      sessionStorage.removeItem('usedKeys');
+      localStorage.removeItem('auth_client_hash');
+      localStorage.removeItem('auth_key_timestamp');
+      localStorage.removeItem('adminAuthenticated');
+      localStorage.removeItem('usedKeys');
       setKeyGenerated(false);
       setAdminKey('');
       setInputKey('');
@@ -147,8 +147,8 @@ const AdminAuth = () => {
 
     if (inputKey === adminKey && keyGenerated) {
       usedKeys.push(inputKey);
-      sessionStorage.setItem('usedKeys', JSON.stringify(usedKeys));
-      sessionStorage.setItem('adminAuthenticated', 'true');
+      localStorage.setItem('usedKeys', JSON.stringify(usedKeys));
+      localStorage.setItem('adminAuthenticated', 'true');
       toast({
         title: "Access Granted",
         description: "Welcome to the admin dashboard!",
