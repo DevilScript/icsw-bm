@@ -9,11 +9,15 @@ import GlassCard from '@/components/GlassCard';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { IdData } from '@/components/IdDetails';
+import { db, auth, signIn } from './firebase';
+import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 
 const Admin = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [savedIds, setSavedIds] = useState<IdData[]>([]);
   
   const [rcFormData, setRcFormData] = useState({
     id: '',
@@ -51,7 +55,6 @@ const Admin = () => {
   });
 
   const [removeId, setRemoveId] = useState('');
-  const [savedIds, setSavedIds] = useState<IdData[]>([]);
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
@@ -61,9 +64,9 @@ const Admin = () => {
         const isAuth = localStorage.getItem('adminAuthenticated') === 'true';
         setIsAuthenticated(isAuth);
         if (isAuth) {
-          clearInterval(intervalId); // หยุด interval เมื่อยืนยันตัวตนสำเร็จ
+          clearInterval(intervalId);
         }
-      } catch (error) {
+      } catch {
         toast({
           title: "ข้อผิดพลาด",
           description: "ไม่สามารถตรวจสอบการยืนยันตัวตนได้ โปรดลองใหม่",
@@ -74,14 +77,14 @@ const Admin = () => {
       }
     };
 
-    // ตรวจสอบครั้งแรกหลังจากหน่วงเวลา 100ms
     const timeoutId = setTimeout(() => {
       checkAuth();
-      // เริ่ม interval เพื่อตรวจสอบซ้ำทุก 500ms (สูงสุด 3 วินาที)
       intervalId = setInterval(checkAuth, 500);
     }, 100);
 
-    // Cleanup
+    // ลงชื่อเข้าใช้ Firebase แบบ Anonymous
+    signIn();
+
     return () => {
       clearTimeout(timeoutId);
       clearInterval(intervalId);
@@ -89,16 +92,32 @@ const Admin = () => {
   }, [toast]);
 
   useEffect(() => {
-    const loadSavedIds = () => {
+    const loadSavedIds = async () => {
+      setIsLoading(true);
       try {
-        const storedData = localStorage.getItem('idData');
-        if (storedData) {
-          setSavedIds(JSON.parse(storedData));
-        }
+        const querySnapshot = await getDocs(collection(db, 'ids'));
+        const idData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as IdData));
+        setSavedIds(idData);
       } catch {
         toast({
           title: "ข้อผิดพลาด",
           description: "ไม่สามารถโหลดข้อมูล ID ได้",
+          variant: "destructive",
+          duration: 7000,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const loadWipeData = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'wipe'));
+        // สมมติว่า backend จัดการ wipeData และ frontend ไม่ต้องอัปเดต state
+      } catch {
+        toast({
+          title: "ข้อผิดพลาด",
+          description: "ไม่สามารถโหลดข้อมูลตระกูลได้",
           variant: "destructive",
           duration: 7000,
         });
@@ -107,6 +126,7 @@ const Admin = () => {
 
     if (isAuthenticated) {
       loadSavedIds();
+      loadWipeData();
     }
   }, [isAuthenticated, toast]);
 
@@ -149,7 +169,7 @@ const Admin = () => {
     }
   };
 
-  const handleRcSubmit = (e: React.FormEvent) => {
+  const handleRcSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (rcFormData.faction === 'None') {
@@ -172,10 +192,8 @@ const Admin = () => {
       return;
     }
     
+    setIsLoading(true);
     try {
-      const storedData = localStorage.getItem('idData');
-      const idData = storedData ? JSON.parse(storedData) : [];
-      
       const newIdData = {
         ...rcFormData,
         rc: parseInt(rcFormData.rc) || 0,
@@ -183,9 +201,8 @@ const Admin = () => {
         price: parseInt(rcFormData.price) || 0
       };
       
-      idData.push(newIdData);
-      
-      localStorage.setItem('idData', JSON.stringify(idData));
+      const docRef = await addDoc(collection(db, 'ids'), newIdData);
+      setSavedIds(prev => [...prev, { id: docRef.id, ...newIdData }]);
       
       toast({
         title: "สำเร็จ",
@@ -206,11 +223,6 @@ const Admin = () => {
         link: 'https://www.facebook.com/is.Moyx',
         isActive: true
       });
-
-      const updatedData = localStorage.getItem('idData');
-      if (updatedData) {
-        setSavedIds(JSON.parse(updatedData));
-      }
     } catch {
       toast({
         title: "ข้อผิดพลาด",
@@ -218,10 +230,12 @@ const Admin = () => {
         variant: "destructive",
         duration: 7000,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
   
-  const handleWipeSubmit = (e: React.FormEvent) => {
+  const handleWipeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (wipeFormData.faction === 'None') {
@@ -254,25 +268,24 @@ const Admin = () => {
       return;
     }
     
+    setIsLoading(true);
     try {
-      const storedData = localStorage.getItem('wipeData');
-      const wipeData = storedData ? JSON.parse(storedData) : [];
+      const wipeData = {
+        clan: wipeFormData.clan,
+        faction: wipeFormData.faction,
+        count: parseInt(wipeFormData.count)
+      };
       
-      const clanIndex = wipeData.findIndex((item: any) => 
-        item.clan === wipeFormData.clan && item.faction === wipeFormData.faction
+      const querySnapshot = await getDocs(collection(db, 'wipe'));
+      const existingDoc = querySnapshot.docs.find(doc => 
+        doc.data().clan === wipeData.clan && doc.data().faction === wipeData.faction
       );
       
-      if (clanIndex >= 0) {
-        wipeData[clanIndex].count = parseInt(wipeFormData.count);
+      if (existingDoc) {
+        await updateDoc(doc(db, 'wipe', existingDoc.id), { count: wipeData.count });
       } else {
-        wipeData.push({
-          clan: wipeFormData.clan,
-          faction: wipeFormData.faction,
-          count: parseInt(wipeFormData.count)
-        });
+        await addDoc(collection(db, 'wipe'), wipeData);
       }
-      
-      localStorage.setItem('wipeData', JSON.stringify(wipeData));
       
       toast({
         title: "สำเร็จ",
@@ -292,6 +305,8 @@ const Admin = () => {
         variant: "destructive",
         duration: 7000,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -325,7 +340,7 @@ const Admin = () => {
     }
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (editFormData.faction === 'None') {
@@ -348,59 +363,44 @@ const Admin = () => {
       return;
     }
     
+    setIsLoading(true);
     try {
-      const storedData = localStorage.getItem('idData');
-      let idData = storedData ? JSON.parse(storedData) : [];
+      const updatedIdData = {
+        id: editFormData.id,
+        clan: editFormData.clan,
+        kagune: editFormData.kagune,
+        isKaguneV2: editFormData.isKaguneV2,
+        rank: editFormData.rank,
+        rc: parseInt(editFormData.rc) || 0,
+        gp: parseInt(editFormData.gp) || 0,
+        price: parseInt(editFormData.price) || 0,
+        link: editFormData.link,
+        isActive: editFormData.isActive
+      };
       
-      const idIndex = idData.findIndex((item: IdData) => item.id === editFormData.selectedId);
+      await updateDoc(doc(db, 'ids', editFormData.selectedId), updatedIdData);
+      setSavedIds(prev => prev.map(id => id.id === editFormData.selectedId ? { id: editFormData.selectedId, ...updatedIdData } : id));
       
-      if (idIndex >= 0) {
-        idData[idIndex] = {
-          ...idData[idIndex],
-          id: editFormData.id,
-          clan: editFormData.clan,
-          kagune: editFormData.kagune,
-          isKaguneV2: editFormData.isKaguneV2,
-          rank: editFormData.rank,
-          rc: parseInt(editFormData.rc) || 0,
-          gp: parseInt(editFormData.gp) || 0,
-          price: parseInt(editFormData.price) || 0,
-          link: editFormData.link,
-          isActive: editFormData.isActive
-        };
-        
-        localStorage.setItem('idData', JSON.stringify(idData));
-        
-        toast({
-          title: "สำเร็จ",
-          description: `อัปเดต ID: ${editFormData.id}`,
-          duration: 5000,
-        });
-        
-        setSavedIds(idData);
-        
-        setEditFormData({
-          selectedId: '',
-          id: '',
-          clan: editFormData.clan,
-          faction: editFormData.faction,
-          kagune: editFormData.kagune,
-          isKaguneV2: false,
-          rank: '',
-          rc: '',
-          gp: '',
-          price: '',
-          link: '',
-          isActive: true
-        });
-      } else {
-        toast({
-          title: "ข้อผิดพลาด",
-          description: "ไม่พบ ID",
-          variant: "destructive",
-          duration: 7000,
-        });
-      }
+      toast({
+        title: "สำเร็จ",
+        description: `อัปเดต ID: ${editFormData.id}`,
+        duration: 5000,
+      });
+      
+      setEditFormData({
+        selectedId: '',
+        id: '',
+        clan: editFormData.clan,
+        faction: editFormData.faction,
+        kagune: editFormData.kagune,
+        isKaguneV2: false,
+        rank: '',
+        rc: '',
+        gp: '',
+        price: '',
+        link: '',
+        isActive: true
+      });
     } catch {
       toast({
         title: "ข้อผิดพลาด",
@@ -408,38 +408,26 @@ const Admin = () => {
         variant: "destructive",
         duration: 7000,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleRemoveSubmit = (e: React.FormEvent) => {
+  const handleRemoveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    setIsLoading(true);
     try {
-      const storedData = localStorage.getItem('idData');
-      let idData = storedData ? JSON.parse(storedData) : [];
+      await deleteDoc(doc(db, 'ids', removeId));
+      setSavedIds(prev => prev.filter(id => id.id !== removeId));
       
-      const newIdData = idData.filter((item: IdData) => item.id !== removeId);
+      toast({
+        title: "สำเร็จ",
+        description: `ลบ ID: ${removeId}`,
+        duration: 5000,
+      });
       
-      if (newIdData.length < idData.length) {
-        localStorage.setItem('idData', JSON.stringify(newIdData));
-        
-        toast({
-          title: "สำเร็จ",
-          description: `ลบ ID: ${removeId}`,
-          duration: 5000,
-        });
-        
-        setSavedIds(newIdData);
-        
-        setRemoveId('');
-      } else {
-        toast({
-          title: "ข้อผิดพลาด",
-          description: "ไม่พบ ID",
-          variant: "destructive",
-          duration: 7000,
-        });
-      }
+      setRemoveId('');
     } catch {
       toast({
         title: "ข้อผิดพลาด",
@@ -447,6 +435,8 @@ const Admin = () => {
         variant: "destructive",
         duration: 7000,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -469,7 +459,7 @@ const Admin = () => {
   };
 
   if (isAuthenticated === null) {
-    return null; // แสดงหน้าเปล่าขณะตรวจสอบ
+    return null;
   }
 
   if (!isAuthenticated) {
@@ -500,6 +490,7 @@ const Admin = () => {
           <Button 
             onClick={handleLogout}
             className="bg-glass-dark/40 text-pink-300 hover:bg-glass-dark/60 hover:text-pink-300 border border-pink-300/30 shadow-md transition-all duration-200"
+            disabled={isLoading}
           >
             ออกจากระบบ
           </Button>
@@ -536,6 +527,7 @@ const Admin = () => {
                       value={rcFormData.id}
                       onChange={(e) => setRcFormData({...rcFormData, id: e.target.value})}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                   
@@ -545,6 +537,7 @@ const Admin = () => {
                       <Select 
                         value={rcFormData.faction}
                         onValueChange={(val) => handleFactionChange(val, 'add')}
+                        disabled={isLoading}
                       >
                         <SelectTrigger className="glass-input border-pink-300/30">
                           <SelectValue placeholder="เลือกฝ่าย" />
@@ -567,7 +560,7 @@ const Admin = () => {
                             setRcFormData({...rcFormData, clan: val});
                           }
                         }}
-                        disabled={rcFormData.faction === 'None'}
+                        disabled={rcFormData.faction === 'None' || isLoading}
                       >
                         <SelectTrigger className="glass-input border-pink-300/30">
                           <SelectValue placeholder="เลือกตระกูล" />
@@ -591,6 +584,7 @@ const Admin = () => {
                         value={rcFormData.kagune}
                         onChange={(e) => setRcFormData({...rcFormData, kagune: e.target.value})}
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     
@@ -599,6 +593,7 @@ const Admin = () => {
                       <Select 
                         value={rcFormData.rank}
                         onValueChange={(val) => setRcFormData({...rcFormData, rank: val})}
+                        disabled={isLoading}
                       >
                         <SelectTrigger className="glass-input border-pink-300/30">
                           <SelectValue placeholder="เลือกอันดับ" />
@@ -627,6 +622,7 @@ const Admin = () => {
                         setRcFormData({...rcFormData, isKaguneV2: checked as boolean})
                       }
                       className="border-pink-300/30 data-[state=checked]:bg-pink-300 data-[state=checked]:border-pink-300"
+                      disabled={isLoading}
                     />
                     <Label 
                       htmlFor="kaguneV2"
@@ -647,6 +643,7 @@ const Admin = () => {
                         value={rcFormData.rc}
                         onChange={(e) => setRcFormData({...rcFormData, rc: e.target.value})}
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     
@@ -660,6 +657,7 @@ const Admin = () => {
                         value={rcFormData.gp}
                         onChange={(e) => setRcFormData({...rcFormData, gp: e.target.value})}
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     
@@ -673,6 +671,7 @@ const Admin = () => {
                         value={rcFormData.price}
                         onChange={(e) => setRcFormData({...rcFormData, price: e.target.value})}
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -685,14 +684,16 @@ const Admin = () => {
                       className="glass-input border-pink-300/30 focus:border-pink-300/50"
                       value={rcFormData.link}
                       onChange={(e) => setRcFormData({...rcFormData, link: e.target.value})}
+                      disabled={isLoading}
                     />
                   </div>
                   
                   <Button 
                     type="submit" 
                     className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-md transition-all duration-200"
+                    disabled={isLoading}
                   >
-                    เพิ่ม ID
+                    {isLoading ? 'กำลังบันทึก...' : 'เพิ่ม ID'}
                   </Button>
                 </form>
               </GlassCard>
@@ -706,6 +707,7 @@ const Admin = () => {
                     <Select 
                       value={wipeFormData.faction}
                       onValueChange={(val) => handleFactionChange(val, 'wipe')}
+                      disabled={isLoading}
                     >
                       <SelectTrigger className="glass-input border-pink-300/30">
                         <SelectValue placeholder="เลือกฝ่าย" />
@@ -728,7 +730,7 @@ const Admin = () => {
                           setWipeFormData({...wipeFormData, clan: val});
                         }
                       }}
-                      disabled={wipeFormData.faction === 'None'}
+                      disabled={wipeFormData.faction === 'None' || isLoading}
                     >
                       <SelectTrigger className="glass-input border-pink-300/30">
                         <SelectValue placeholder="เลือกตระกูล" />
@@ -751,14 +753,16 @@ const Admin = () => {
                       value={wipeFormData.count}
                       onChange={(e) => setWipeFormData({...wipeFormData, count: e.target.value})}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                   
                   <Button 
                     type="submit" 
                     className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-md transition-all duration-200"
+                    disabled={isLoading}
                   >
-                    อัปเดตจำนวนตระกูล
+                    {isLoading ? 'กำลังบันทึก...' : 'อัปเดตจำนวนตระกูล'}
                   </Button>
                 </form>
               </GlassCard>
@@ -772,6 +776,7 @@ const Admin = () => {
                     <Select 
                       value={editFormData.selectedId}
                       onValueChange={handleIdSelect}
+                      disabled={isLoading}
                     >
                       <SelectTrigger className="glass-input border-pink-300/30">
                         <SelectValue placeholder="เลือก ID" />
@@ -797,6 +802,7 @@ const Admin = () => {
                           value={editFormData.id}
                           onChange={(e) => setEditFormData({...editFormData, id: e.target.value})}
                           required
+                          disabled={isLoading}
                         />
                       </div>
                       
@@ -806,6 +812,7 @@ const Admin = () => {
                           <Select 
                             value={editFormData.faction}
                             onValueChange={(val) => handleFactionChange(val, 'edit')}
+                            disabled={isLoading}
                           >
                             <SelectTrigger className="glass-input border-pink-300/30">
                               <SelectValue placeholder="เลือกฝ่าย" />
@@ -828,7 +835,7 @@ const Admin = () => {
                                 setEditFormData({...editFormData, clan: val});
                               }
                             }}
-                            disabled={editFormData.faction === 'None'}
+                            disabled={editFormData.faction === 'None' || isLoading}
                           >
                             <SelectTrigger className="glass-input border-pink-300/30">
                               <SelectValue placeholder="เลือกตระกูล" />
@@ -852,6 +859,7 @@ const Admin = () => {
                             value={editFormData.kagune}
                             onChange={(e) => setEditFormData({...editFormData, kagune: e.target.value})}
                             required
+                            disabled={isLoading}
                           />
                         </div>
                         
@@ -860,6 +868,7 @@ const Admin = () => {
                           <Select 
                             value={editFormData.rank}
                             onValueChange={(val) => setEditFormData({...editFormData, rank: val})}
+                            disabled={isLoading}
                           >
                             <SelectTrigger className="glass-input border-pink-300/30">
                               <SelectValue placeholder="เลือกอันดับ" />
@@ -888,6 +897,7 @@ const Admin = () => {
                             setEditFormData({...editFormData, isKaguneV2: checked as boolean})
                           }
                           className="border-pink-300/30 data-[state=checked]:bg-pink-300 data-[state=checked]:border-pink-300"
+                          disabled={isLoading}
                         />
                         <Label 
                           htmlFor="edit-kaguneV2"
@@ -908,6 +918,7 @@ const Admin = () => {
                             value={editFormData.rc}
                             onChange={(e) => setEditFormData({...editFormData, rc: e.target.value})}
                             required
+                            disabled={isLoading}
                           />
                         </div>
                         
@@ -921,6 +932,7 @@ const Admin = () => {
                             value={editFormData.gp}
                             onChange={(e) => setEditFormData({...editFormData, gp: e.target.value})}
                             required
+                            disabled={isLoading}
                           />
                         </div>
                         
@@ -934,6 +946,7 @@ const Admin = () => {
                             value={editFormData.price}
                             onChange={(e) => setEditFormData({...editFormData, price: e.target.value})}
                             required
+                            disabled={isLoading}
                           />
                         </div>
                       </div>
@@ -946,14 +959,16 @@ const Admin = () => {
                           className="glass-input border-pink-300/30 focus:border-pink-300/50"
                           value={editFormData.link}
                           onChange={(e) => setEditFormData({...editFormData, link: e.target.value})}
+                          disabled={isLoading}
                         />
                       </div>
                       
                       <Button 
                         type="submit" 
                         className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-md transition-all duration-200"
+                        disabled={isLoading}
                       >
-                        อัปเดต ID
+                        {isLoading ? 'กำลังบันทึก...' : 'อัปเดต ID'}
                       </Button>
                     </>
                   )}
@@ -969,6 +984,7 @@ const Admin = () => {
                     <Select 
                       value={removeId}
                       onValueChange={setRemoveId}
+                      disabled={isLoading}
                     >
                       <SelectTrigger className="glass-input border-pink-300/30">
                         <SelectValue placeholder="เลือก ID" />
@@ -986,9 +1002,9 @@ const Admin = () => {
                   <Button 
                     type="submit" 
                     className="w-full bg-red-500/80 hover:bg-red-500 text-white border border-red-300/30 shadow-md transition-all duration-200"
-                    disabled={!removeId}
+                    disabled={!removeId || isLoading}
                   >
-                    ลบ ID ที่เลือก
+                    {isLoading ? 'กำลังลบ...' : 'ลบ ID ที่เลือก'}
                   </Button>
                 </form>
               </GlassCard>
