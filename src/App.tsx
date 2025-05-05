@@ -5,11 +5,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
-import Admin from "./pages/Admin";
+import Admin from '@/pages//Admin';
 import NotFound from "./pages/NotFound";
 import Navbar from "./components/Navbar";
 import Contributors from '@/pages/Contributors';
-
 const queryClient = new QueryClient();
 
 const App = () => (
