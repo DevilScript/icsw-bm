@@ -20,8 +20,8 @@ const AdminAuth = () => {
         navigate('/admin', { replace: true });
       } else {
         toast({
-          title: "Authentication Required",
-          description: "Please click 'Get Key' to receive an authentication key via Discord.",
+          title: "ต้องยืนยันตัวตน",
+          description: "โปรดคลิก 'ขอคีย์' เพื่อรับคีย์ยืนยันตัวตนผ่าน Discord",
           duration: 5000,
         });
       }
@@ -41,8 +41,8 @@ const AdminAuth = () => {
 
     if (!webhookUrl) {
       toast({
-        title: "Configuration Error",
-        description: "Discord webhook URL is missing. Please contact support.",
+        title: "ข้อผิดพลาดการตั้งค่า",
+        description: "ไม่มี URL สำหรับ Discord Webhook โปรดติดต่อฝ่ายสนับสนุน",
         variant: "destructive",
         duration: 7000,
       });
@@ -65,7 +65,7 @@ const AdminAuth = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: `New Admin Authentication Key: ${key}\nSecurity Info: ${JSON.stringify(securityInfo)}`,
+          content: `คีย์ยืนยันตัวตนใหม่: ${key}\nข้อมูลความปลอดภัย: ${JSON.stringify(securityInfo)}`,
         }),
       });
 
@@ -78,8 +78,8 @@ const AdminAuth = () => {
       return true;
     } catch {
       toast({
-        title: "Error",
-        description: "Failed to send key to Discord. Please try again or contact support.",
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถส่งคีย์ไปยัง Discord ได้ โปรดลองอีกครั้งหรือติดต่อฝ่ายสนับสนุน",
         variant: "destructive",
         duration: 7000,
       });
@@ -100,8 +100,8 @@ const AdminAuth = () => {
       const success = await sendKeyToDiscord(newKey);
       if (success) {
         toast({
-          title: "New Key Generated",
-          description: "A new authentication key has been sent to Discord. Please check and enter it below.",
+          title: "สร้างคีย์ใหม่สำเร็จ",
+          description: "คีย์ยืนยันตัวตนใหม่ถูกส่งไปยัง Discord แล้ว โปรดตรวจสอบและกรอกด้านล่าง",
           duration: 7000,
         });
       }
@@ -119,8 +119,8 @@ const AdminAuth = () => {
 
     if (storedClientHash && storedClientHash !== currentHash) {
       toast({
-        title: "Security Alert",
-        description: "Client verification failed. Please get a new key.",
+        title: "แจ้งเตือนความปลอดภัย",
+        description: "การตรวจสอบอุปกรณ์ล้มเหลว โปรดขอคีย์ใหม่",
         variant: "destructive",
         duration: 7000,
       });
@@ -136,8 +136,8 @@ const AdminAuth = () => {
 
     if (usedKeys.includes(inputKey)) {
       toast({
-        title: "Access Denied",
-        description: "This key has already been used. Please get a new key.",
+        title: "การเข้าถึงถูกปฏิเสธ",
+        description: "คีย์นี้ถูกใช้ไปแล้ว โปรดขอคีย์ใหม่",
         variant: "destructive",
         duration: 7000,
       });
@@ -150,8 +150,8 @@ const AdminAuth = () => {
       localStorage.setItem('usedKeys', JSON.stringify(usedKeys));
       localStorage.setItem('adminAuthenticated', 'true');
       toast({
-        title: "Access Granted",
-        description: "Welcome to the admin dashboard!",
+        title: "การเข้าถึงได้รับอนุญาต",
+        description: "ยินดีต้อนรับสู่แดชบอร์ดแอดมิน!",
         duration: 5000,
       });
       setAdminKey('');
@@ -160,8 +160,8 @@ const AdminAuth = () => {
       navigate('/admin', { replace: true });
     } else {
       toast({
-        title: "Access Denied",
-        description: "Invalid authentication key. Please try again or get a new key.",
+        title: "การเข้าถึงถูกปฏิเสธ",
+        description: "คีย์ยืนยันตัวตนไม่ถูกต้อง โปรดลองอีกครั้งหรือขอคีย์ใหม่",
         variant: "destructive",
         duration: 7000,
       });
@@ -176,13 +176,13 @@ const AdminAuth = () => {
           <div className="h-16 w-16 rounded-full bg-pink-300/20 backdrop-blur-sm flex items-center justify-center mb-4 border border-pink-300/30">
             <Key size={28} className="text-pink-300" />
           </div>
-          <h2 className="text-2xl font-bold text-white">Admin Authentication</h2>
+          <h2 className="text-2xl font-bold text-white">ยืนยันตัวตนแอดมิน</h2>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             type="password"
-            placeholder="Enter Authentication Key"
+            placeholder="กรอกคีย์ยืนยันตัวตน"
             className="glass-input border-pink-300/30 focus:border-pink-400/50 text-center"
             value={inputKey}
             onChange={(e) => setInputKey(e.target.value)}
@@ -191,7 +191,7 @@ const AdminAuth = () => {
           />
           {!keyGenerated && (
             <p className="text-sm text-pink-300 text-center">
-              Please click "Get Key" to receive an authentication key via Discord.
+              โปรดคลิก "ขอคีย์" เพื่อรับคีย์ยืนยันตัวตนผ่าน Discord
             </p>
           )}
           <div className="flex gap-2">
@@ -201,14 +201,14 @@ const AdminAuth = () => {
               className="flex-1 bg-glass-dark/40 text-pink-300 hover:bg-glass-dark/60 border border-pink-300/30 transition-all duration-200"
               disabled={isLoading}
             >
-              {isLoading ? 'Generating...' : 'Get Key'}
+              {isLoading ? 'กำลังสร้าง...' : 'ขอคีย์'}
             </Button>
             <Button
               type="submit"
               className="flex-1 bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-md transition-all duration-200"
               disabled={!keyGenerated || isLoading}
             >
-              Authenticate
+              ยืนยันตัวตน
             </Button>
           </div>
         </form>
