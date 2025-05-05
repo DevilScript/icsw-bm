@@ -13,16 +13,31 @@ const AdminAuth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Generate a random key function
+  // Generate a random key function using crypto
   const generateRandomKey = (): string => {
-    return Math.random().toString(36).substring(2, 15) + 
-           Math.random().toString(36).substring(2, 15);
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => ('0' + byte.toString(16)).slice(-2)).join('');
   };
 
   // Send key to Discord webhook with additional security
   const sendKeyToDiscord = async (key: string) => {
-    const webhookUrl = 'https://discord.com/api/webhooks/1368789991685095456/sr3yEJHbeHM6Tfz58OgjOclrlWo3nHN_pi_2fXqjHg-7ldR0wbo1JIptphWbzCeCQdDK';
-    
+    const webhookUrl = import.meta.env.VITE_DISCORD_WEBHOOK_URL;
+
+    if (!webhookUrl) {
+      toast({
+        title: "Configuration Error",
+        description: "Discord webhook URL is missing. Please contact support.",
+        variant: "destructive",
+        duration: 7000,
+      });
+      localStorage.removeItem('auth_client_hash');
+      localStorage.removeItem('auth_key_timestamp');
+      localStorage.removeItem('adminAuthenticated');
+      localStorage.removeItem('usedKeys');
+      return false;
+    }
+
     try {
       // Add timestamp and client information for security
       const securityInfo = {
@@ -32,7 +47,7 @@ const AdminAuth = () => {
         clientHash: btoa(navigator.userAgent + window.screen.width + window.screen.height)
       };
       
-      await fetch(webhookUrl, {
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,25 +56,42 @@ const AdminAuth = () => {
           content: `New Admin Authentication Key: ${key}\nSecurity Info: ${JSON.stringify(securityInfo)}`,
         }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to send key to Discord');
+      }
       
       // Store client hash with the key for verification
       localStorage.setItem('auth_client_hash', securityInfo.clientHash);
       localStorage.setItem('auth_key_timestamp', securityInfo.timestamp);
+      return true;
     } catch (error) {
-      console.error('Failed to send key to Discord:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send key to Discord. Please try again or contact support.",
+        variant: "destructive",
+        duration: 7000,
+      });
+      localStorage.removeItem('auth_client_hash');
+      localStorage.removeItem('auth_key_timestamp');
+      localStorage.removeItem('adminAuthenticated');
+      localStorage.removeItem('usedKeys');
+      return false;
     }
   };
 
-  const handleGetKey = () => {
+  const handleGetKey = async () => {
     const newKey = generateRandomKey();
     setAdminKey(newKey);
     setKeyGenerated(true);
-    sendKeyToDiscord(newKey);
+    const success = await sendKeyToDiscord(newKey);
     
-    toast({
-      title: "New Key Generated",
-      description: "A new authentication key has been sent to Discord.",
-    });
+    if (success) {
+      toast({
+        title: "New Key Generated",
+        description: "A new authentication key has been sent to Discord.",
+      });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -68,6 +100,7 @@ const AdminAuth = () => {
     // Get stored client hash for verification
     const storedClientHash = localStorage.getItem('auth_client_hash');
     const currentHash = btoa(navigator.userAgent + window.screen.width + window.screen.height);
+    const usedKeys = JSON.parse(localStorage.getItem('usedKeys') || '[]');
     
     // Security check - verify client hasn't changed
     if (storedClientHash && storedClientHash !== currentHash) {
@@ -78,8 +111,21 @@ const AdminAuth = () => {
       });
       return;
     }
+
+    // Check if key has been used
+    if (usedKeys.includes(inputKey)) {
+      toast({
+        title: "Access denied",
+        description: "This key has already been used. Please get a new key.",
+        variant: "destructive",
+      });
+      setInputKey('');
+      return;
+    }
     
     if (inputKey === adminKey && keyGenerated) {
+      usedKeys.push(inputKey);
+      localStorage.setItem('usedKeys', JSON.stringify(usedKeys));
       localStorage.setItem('adminAuthenticated', 'true');
       toast({
         title: "Access granted",
