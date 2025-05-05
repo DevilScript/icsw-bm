@@ -473,253 +473,445 @@ const Admin = () => {
                     
                     <div className="space-y-2">
                       <Label htmlFor="rc-clan">Clan</Label>
-                      <Select ขอบคุณที่ชี้แจง! จากคำขอของคุณ คุณยืนยันว่าต้องการใช้ `sessionStorage` (ไม่ใช่ `localStorage`) สำหรับการจัดการการยืนยันตัวตน (`adminAuthenticated`, `auth_client_hash`, `auth_key_timestamp`) เพื่อให้ข้อมูลถูกล้างเมื่อปิดแท็บหรือเบราว์เซอร์ ซึ่งเป็นตัวเลือกที่เหมาะสมสำหรับการยืนยันตัวตนชั่วคราวและปลอดภัยกว่าในกรณีนี้ คุณต้องการให้ฉัน:
-1. แก้ไขโค้ด `AdminAuth.tsx` และ `Admin.tsx` เพื่อใช้ `sessionStorage` อย่างสม่ำเสมอ
-2. ทำให้ฟังก์ชันใน `/admin-auth` ทำงานเรียบง่าย:
-   - กด "Get Key" เพื่อส่ง key ไป Discord Webhook
-   - กรอก key และ redirect ไป `/admin` ถ้าถูกต้อง
-   - ป้องกันการใช้ key ซ้ำ
-3. เมื่อกด logout จาก `/admin` จะล้างข้อมูลใน `sessionStorage` และ redirect ไปหน้าเริ่มต้น (`/`)
-4. แก้ปัญหาการรวน ตรวจสอบให้ปลอดภัย และทำให้โค้ดลื่นไหลโดยไม่กระทบฟังก์ชันหลักใน `/admin` (เพิ่ม/แก้ไข/ลบ ID, อัปเดต clan count)
-5. ลบ console logs และ debug messages เพื่อป้องกันการเห็นการทำงานภายใน
+                      <Select 
+                        key={rcFormData.faction}
+                        value={rcFormData.clan}
+                        onValueChange={(val) => {
+                          if (val && clans[rcFormData.faction]?.includes(val)) {
+                            setRcFormData({...rcFormData, clan: val});
+                          }
+                        }}
+                        disabled={rcFormData.faction === 'None'}
+                      >
+                        <SelectTrigger className="glass-input border-pink-300/30">
+                          <SelectValue placeholder="Select Clan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {rcFormData.faction !== 'None' && clans[rcFormData.faction]?.map((clan) => (
+                            <SelectItem key={clan} value={clan}>{clan}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-### การวิเคราะห์
-จากโค้ดที่คุณให้มาและปัญหาการรวน:
-- **สาเหตุที่รวน**:
-  - การใช้ `sessionStorage` และ `localStorage` ผสมกันในโค้ดเดิมทำให้ `adminAuthenticated` ไม่สอดคล้องกัน
-  - การจัดการ key ไม่มีการตรวจสอบการใช้ซ้ำ ทำให้อาจเกิดช่องโหว่
-  - การโหลดหน้า `/admin-auth` หน่วงจาก animations หรือการเรียก toast โดยไม่จำเป็น
-  - Console logs อาจเผยข้อมูล sensitive และทำให้โค้ดดูไม่สะอาด
-- **แนวทางการแก้ไข**:
-  - ใช้ `sessionStorage` อย่างสม่ำเสมอในทั้ง `AdminAuth.tsx` และ `Admin.tsx`
-  - เพิ่มการตรวจสอบ key ที่ใช้แล้วด้วย array ใน `sessionStorage`
-  - ลด animations และเพิ่ม loading state เพื่อ UX ที่ดีขึ้น
-  - ลบ console logs และ debug messages
-  - เพิ่มการจัดการข้อผิดพลาดและ validation เพื่อความเสถียร
-  - รักษาฟังก์ชันหลักใน `/admin` โดยไม่เปลี่ยน logic การจัดการ ID และ clan count
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="rc-kagune">Kagune</Label>
+                      <Input 
+                        id="rc-kagune" 
+                        placeholder="Enter Kagune" 
+                        className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                        value={rcFormData.kagune}
+                        onChange={(e) => setRcFormData({...rcFormData, kagune: e.target.value})}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="rc-rank">Rank</Label>
+                      <Select 
+                        value={rcFormData.rank}
+                        onValueChange={(val) => setRcFormData({...rcFormData, rank: val})}
+                      >
+                        <SelectTrigger className="glass-input border-pink-300/30">
+                          <SelectValue placeholder="Select Rank" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="SSS">SSS</SelectItem>
+                          <SelectItem value="SS+">SS+</SelectItem>
+                          <SelectItem value="SS">SS</SelectItem>
+                          <SelectItem value="S+">S+</SelectItem>
+                          <SelectItem value="S">S</SelectItem>
+                          <SelectItem value="A+">A+</SelectItem>
+                          <SelectItem value="A">A</SelectItem>
+                          <SelectItem value="B+">B+</SelectItem>
+                          <SelectItem value="B">B</SelectItem>
+                          <SelectItem value="C">C</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="kaguneV2" 
+                      checked={rcFormData.isKaguneV2}
+                      onCheckedChange={(checked) => 
+                        setRcFormData({...rcFormData, isKaguneV2: checked as boolean})
+                      }
+                      className="border-pink-300/30 data-[state=checked]:bg-pink-300 data-[state=checked]:border-pink-300"
+                    />
+                    <Label 
+                      htmlFor="kaguneV2"
+                      className="text-sm text-glass-light cursor-pointer"
+                    >
+                      Has Kagune V2
+                    </Label>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="rc-rc">RC Value</Label>
+                      <Input 
+                        id="rc-rc" 
+                        type="number"
+                        placeholder="RC Value" 
+                        className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                        value={rcFormData.rc}
+                        onChange={(e) => setRcFormData({...rcFormData, rc: e.target.value})}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="rc-gp">GP Value</Label>
+                      <Input 
+                        id="rc-gp" 
+                        type="number"
+                        placeholder="GP Value" 
+                        className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                        value={rcFormData.gp}
+                        onChange={(e) => setRcFormData({...rcFormData, gp: e.target.value})}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="rc-price">Price ($)</Label>
+                      <Input 
+                        id="rc-price" 
+                        type="number"
+                        placeholder="Price" 
+                        className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                        value={rcFormData.price}
+                        onChange={(e) => setRcFormData({...rcFormData, price: e.target.value})}
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="rc-link">Buy Link</Label>
+                    <Input 
+                      id="rc-link" 
+                      placeholder="Enter link" 
+                      className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                      value={rcFormData.link}
+                      onChange={(e) => setRcFormData({...rcFormData, link: e.target.value})}
+                    />
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-md transition-all duration-200"
+                  >
+                    Add ID
+                  </Button>
+                </form>
+              </GlassCard>
+            </TabsContent>
 
-### โค้ดที่อัปเดต
-#### 1. `AdminAuth.tsx`
-โค้ดนี้จัดการหน้า `/admin-auth` โดยมีฟังก์ชัน Get Key, ส่ง key ไป Discord, ตรวจสอบ key, และป้องกันการใช้ key ซ้ำ
+            <TabsContent value="add-clan" className="mt-0">
+              <GlassCard className="border border-pink-300/30 shadow-md">
+                <form onSubmit={handleWipeSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="wipe-faction">Faction</Label>
+                    <Select 
+                      value={wipeFormData.faction}
+                      onValueChange={(val) => handleFactionChange(val, 'wipe')}
+                    >
+                      <SelectTrigger className="glass-input border-pink-300/30">
+                        <SelectValue placeholder="Select Faction" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="None">None</SelectItem>
+                        <SelectItem value="CCG">CCG</SelectItem>
+                        <SelectItem value="Ghoul">Ghoul</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="wipe-clan">Clan</Label>
+                    <Select 
+                      key={wipeFormData.faction}
+                      value={wipeFormData.clan}
+                      onValueChange={(val) => {
+                        if (val && clans[wipeFormData.faction]?.includes(val)) {
+                          setWipeFormData({...wipeFormData, clan: val});
+                        }
+                      }}
+                      disabled={wipeFormData.faction === 'None'}
+                    >
+                      <SelectTrigger className="glass-input border-pink-300/30">
+                        <SelectValue placeholder="Select Clan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {wipeFormData.faction !== 'None' && clans[wipeFormData.faction]?.map((clan) => (
+                          <SelectItem key={clan} value={clan}>{clan}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="wipe-count">Count</Label>
+                    <Input 
+                      id="wipe-count" 
+                      type="number"
+                      placeholder="Enter Count" 
+                      className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                      value={wipeFormData.count}
+                      onChange={(e) => setWipeFormData({...wipeFormData, count: e.target.value})}
+                      required
+                    />
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-md transition-all duration-200"
+                  >
+                    Update Clan Count
+                  </Button>
+                </form>
+              </GlassCard>
+            </TabsContent>
 
-<xaiArtifact artifact_id="ec030f41-5007-4659-8600-7c4062b21a73" artifact_version_id="dfb70da8-44e4-4204-bdc7-f184549e06d6" title="AdminAuth.tsx" contentType="text/typescript">
-import React, { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Key } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import GlassCard from './GlassCard';
-import { useToast } from '@/hooks/use-toast';
+            <TabsContent value="edit-id" className="mt-0">
+              <GlassCard className="border border-pink-300/30 shadow-md">
+                <form onSubmit={handleEditSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-select-id">Select ID to Edit</Label>
+                    <Select 
+                      value={editFormData.selectedId}
+                      onValueChange={handleIdSelect}
+                    >
+                      <SelectTrigger className="glass-input border-pink-300/30">
+                        <SelectValue placeholder="Select ID" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {savedIds.map((id) => (
+                          <SelectItem key={id.id} value={id.id}>
+                            {id.id} - {id.clan}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-const AdminAuth = () => {
-  const [adminKey, setAdminKey] = useState('');
-  const [inputKey, setInputKey] = useState('');
-  const [keyGenerated, setKeyGenerated] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-  const navigate = useNavigate();
+                  {editFormData.selectedId && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-id">ID</Label>
+                        <Input 
+                          id="edit-id" 
+                          placeholder="Enter ID" 
+                          className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                          value={editFormData.id}
+                          onChange={(e) => setEditFormData({...editFormData, id: e.target.value})}
+                          required
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-faction">Faction</Label>
+                          <Select 
+                            value={editFormData.faction}
+                            onValueChange={(val) => handleFactionChange(val, 'edit')}
+                          >
+                            <SelectTrigger className="glass-input border-pink-300/30">
+                              <SelectValue placeholder="Select Faction" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="None">None</SelectItem>
+                              <SelectItem value="CCG">CCG</SelectItem>
+                              <SelectItem value="Ghoul">Ghoul</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-clan">Clan</Label>
+                          <Select 
+                            key={editFormData.faction}
+                            value={editFormData.clan}
+                            onValueChange={(val) => {
+                              if (val && clans[editFormData.faction]?.includes(val)) {
+                                setEditFormData({...editFormData, clan: val});
+                              }
+                            }}
+                            disabled={editFormData.faction === 'None'}
+                          >
+                            <SelectTrigger className="glass-input border-pink-300/30">
+                              <SelectValue placeholder="Select Clan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {editFormData.faction !== 'None' && clans[editFormData.faction]?.map((clan) => (
+                                <SelectItem key={clan} value={clan}>{clan}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
 
-  useEffect(() => {
-    const checkAuth = setTimeout(() => {
-      if (sessionStorage.getItem('adminAuthenticated') === 'true') {
-        navigate('/admin', { replace: true });
-      } else {
-        toast({
-          title: "Authentication Required",
-          description: "Please click 'Get Key' to receive an authentication key via Discord.",
-          duration: 5000,
-        });
-      }
-    }, 100);
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-kagune">Kagune</Label>
+                          <Input 
+                            id="edit-kagune" 
+                            placeholder="Enter Kagune" 
+                            className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                            value={editFormData.kagune}
+                            onChange={(e) => setEditFormData({...editFormData, kagune: e.target.value})}
+                            required
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-rank">Rank</Label>
+                          <Select 
+                            value={editFormData.rank}
+                            onValueChange={(val) => setEditFormData({...editFormData, rank: val})}
+                          >
+                            <SelectTrigger className="glass-input border-pink-300/30">
+                              <SelectValue placeholder="Select Rank" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="SSS">SSS</SelectItem>
+                              <SelectItem value="SS+">SS+</SelectItem>
+                              <SelectItem value="SS">SS</SelectItem>
+                              <SelectItem value="S+">S+</SelectItem>
+                              <SelectItem value="S">S</SelectItem>
+                              <SelectItem value="A+">A+</SelectItem>
+                              <SelectItem value="A">A</SelectItem>
+                              <SelectItem value="B+">B+</SelectItem>
+                              <SelectItem value="B">B</SelectItem>
+                              <SelectItem value="C">C</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="edit-kaguneV2" 
+                          checked={editFormData.isKaguneV2}
+                          onCheckedChange={(checked) => 
+                            setEditFormData({...editFormData, isKaguneV2: checked as boolean})
+                          }
+                          className="border-pink-300/30 data-[state=checked]:bg-pink-300 data-[state=checked]:border-pink-300"
+                        />
+                        <Label 
+                          htmlFor="edit-kaguneV2"
+                          className="text-sm text-glass-light cursor-pointer"
+                        >
+                          Has Kagune V2
+                        </Label>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-rc">RC Value</Label>
+                          <Input 
+                            id="edit-rc" 
+                            type="number"
+                            placeholder="RC Value" 
+                            className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                            value={editFormData.rc}
+                            onChange={(e) => setEditFormData({...editFormData, rc: e.target.value})}
+                            required
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-gp">GP Value</Label>
+                          <Input 
+                            id="edit-gp" 
+                            type="number"
+                            placeholder="GP Value" 
+                            className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                            value={editFormData.gp}
+                            onChange={(e) => setEditFormData({...editFormData, gp: e.target.value})}
+                            required
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-price">Price ($)</Label>
+                          <Input 
+                            id="edit-price" 
+                            type="number"
+                            placeholder="Price" 
+                            className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                            value={editFormData.price}
+                            onChange={(e) => setEditFormData({...editFormData, price: e.target.value})}
+                            required
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-link">Buy Link</Label>
+                        <Input 
+                          id="edit-link" 
+                          placeholder="Enter link" 
+                          className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                          value={editFormData.link}
+                          onChange={(e) => setEditFormData({...editFormData, link: e.target.value})}
+                        />
+                      </div>
+                      
+                      <Button 
+                        type="submit" 
+                        className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-md transition-all duration-200"
+                      >
+                        Update ID
+                      </Button>
+                    </>
+                  )}
+                </form>
+              </GlassCard>
+            </TabsContent>
 
-    return () => clearTimeout(checkAuth);
-  }, [navigate, toast]);
-
-  const generateRandomKey = () => {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return Array.from(array, byte => ('0' + byte.toString(16)).slice(-2)).join('');
-  };
-
-  const sendKeyToDiscord = async (key: string) => {
-    const webhookUrl = import.meta.env.VITE_DISCORD_WEBHOOK_URL;
-
-    if (!webhookUrl) {
-      toast({
-        title: "Configuration Error",
-        description: "Discord webhook URL is missing. Please contact support.",
-        variant: "destructive",
-        duration: 7000,
-      });
-      sessionStorage.removeItem('auth_client_hash');
-      sessionStorage.removeItem('auth_key_timestamp');
-      sessionStorage.removeItem('adminAuthenticated');
-      sessionStorage.removeItem('usedKeys');
-      return false;
-    }
-
-    try {
-      const securityInfo = {
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        referrer: document.referrer,
-        clientHash: btoa(navigator.userAgent + window.screen.width + window.screen.height),
-      };
-
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: `New Admin Authentication Key: ${key}\nSecurity Info: ${JSON.stringify(securityInfo)}`,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send key to Discord');
-      }
-
-      sessionStorage.setItem('auth_client_hash', securityInfo.clientHash);
-      sessionStorage.setItem('auth_key_timestamp', securityInfo.timestamp);
-      return true;
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to send key to Discord. Please try again or contact support.",
-        variant: "destructive",
-        duration: 7000,
-      });
-      sessionStorage.removeItem('auth_client_hash');
-      sessionStorage.removeItem('auth_key_timestamp');
-      sessionStorage.removeItem('adminAuthenticated');
-      sessionStorage.removeItem('usedKeys');
-      return false;
-    }
-  };
-
-  const handleGetKey = async () => {
-    setIsLoading(true);
-    try {
-      const newKey = generateRandomKey();
-      setAdminKey(newKey);
-      setKeyGenerated(true);
-      const success = await sendKeyToDiscord(newKey);
-      if (success) {
-        toast({
-          title: "New Key Generated",
-          description: "A new authentication key has been sent to Discord. Please check and enter it below.",
-          duration: 7000,
-        });
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const storedClientHash = sessionStorage.getItem('auth_client_hash');
-    const currentHash = btoa(navigator.userAgent + window.screen.width + window.screen.height);
-    const usedKeys = JSON.parse(sessionStorage.getItem('usedKeys') || '[]');
-
-    if (storedClientHash && storedClientHash !== currentHash) {
-      toast({
-        title: "Security Alert",
-        description: "Client verification failed. Please get a new key.",
-        variant: "destructive",
-        duration: 7000,
-      });
-      sessionStorage.removeItem('auth_client_hash');
-      sessionStorage.removeItem('auth_key_timestamp');
-      sessionStorage.removeItem('adminAuthenticated');
-      sessionStorage.removeItem('usedKeys');
-      setKeyGenerated(false);
-      setAdminKey('');
-      setInputKey('');
-      return;
-    }
-
-    if (usedKeys.includes(inputKey)) {
-      toast({
-        title: "Access Denied",
-        description: "This key has already been used. Please get a new key.",
-        variant: "destructive",
-        duration: 7000,
-      });
-      setInputKey('');
-      return;
-    }
-
-    if (inputKey === adminKey && keyGenerated) {
-      usedKeys.push(inputKey);
-      sessionStorage.setItem('usedKeys', JSON.stringify(usedKeys));
-      sessionStorage.setItem('adminAuthenticated', 'true');
-      toast({
-        title: "Access Granted",
-        description: "Welcome to the admin dashboard!",
-        duration: 5000,
-      });
-      setAdminKey('');
-      setKeyGenerated(false);
-      setInputKey('');
-      navigate('/admin', { replace: true });
-    } else {
-      toast({
-        title: "Access Denied",
-        description: "Invalid authentication key. Please try again or get a new key.",
-        variant: "destructive",
-        duration: 7000,
-      });
-      setInputKey('');
-    }
-  };
-
-  return (
-    <div className="flex items-center justify-center min-h-screen px-4 py-8 bg-glass-dark">
-      <GlassCard className="max-w-md w-full border border-pink-300/30 shadow-md">
-        <div className="flex flex-col items-center mb-6">
-          <div className="h-16 w-16 rounded-full bg-pink-300/20 backdrop-blur-sm flex items-center justify-center mb-4 border border-pink-300/30">
-            <Key size={28} className="text-pink-300" />
+            <TabsContent value="remove-id" className="mt-0">
+              <GlassCard className="border border-pink-300/30 shadow-md">
+                <form onSubmit={handleRemoveSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="remove-id">Select ID to Remove</Label>
+                    <Select 
+                      value={removeId}
+                      onValueChange={setRemoveId}
+                    >
+                      <SelectTrigger className="glass-input border-pink-300/30">
+                        <SelectValue placeholder="Select ID" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {savedIds.map((id) => (
+                          <SelectItem key={id.id} value={id.id}>
+                            {id.id} - {id.clan}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-red-500/80 hover:bg-red-500 text-white border border-red-300/30 shadow-md transition-all duration-200"
+                    disabled={!removeId}
+                  >
+                    Remove Selected ID
+                  </Button>
+                </form>
+              </GlassCard>
+            </TabsContent>
           </div>
-          <h2 className="text-2xl font-bold text-white">Admin Authentication</h2>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            type="password"
-            placeholder="Enter Authentication Key"
-            className="glass-input border-pink-300/30 focus:border-pink-400/50 text-center"
-            value={inputKey}
-            onChange={(e) => setInputKey(e.target.value)}
-            required
-            disabled={isLoading}
-          />
-          {!keyGenerated && (
-            <p className="text-sm text-pink-300 text-center">
-              Please click "Get Key" to receive an authentication key via Discord.
-            </p>
-          )}
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              onClick={handleGetKey}
-              className="flex-1 bg-glass-dark/40 text-pink-300 hover:bg-glass-dark/60 border border-pink-300/30 transition-all duration-200"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Generating...' : 'Get Key'}
-            </Button>
-            <Button
-              type="submit"
-              className="flex-1 bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-md transition-all duration-200"
-              disabled={!keyGenerated || isLoading}
-            >
-              Authenticate
-            </Button>
-          </div>
-        </form>
-      </GlassCard>
+        </Tabs>
+      </div>
     </div>
   );
 };
 
-export default AdminAuth;
+export default Admin;
