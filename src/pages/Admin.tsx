@@ -538,7 +538,7 @@ const Admin = () => {
                       id="kaguneV2" 
                       checked={rcFormData.isKaguneV2}
                       onCheckedChange={(checked) => 
-                        setRc FormData({...rcFormData, isKaguneV2: checked as boolean})
+                        setRcFormData({...rcFormData, isKaguneV2: checked as boolean})
                       }
                       className="border-pink-300/30 data-[state=checked]:bg-pink-300 data-[state=checked]:border-pink-300"
                     />
