@@ -58,7 +58,6 @@ const IdWipeCounter = ({ data, loading = false }: IdWipeCounterProps) => {
         data-testid="buy-link"
         className="custom-cursor relative z-10 inline-block bg-pink-300/20 hover:bg-pink-300/30 text-pink-300 font-bold border border-pink-300/30 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-pink-300/20 px-4 py-1.5 rounded-full text-sm mb-6"
         onClick={(e) => {
-          console.log('To Buy clicked, opening link: https://www.facebook.com/is.Moyx');
           e.stopPropagation();
         }}
       >
