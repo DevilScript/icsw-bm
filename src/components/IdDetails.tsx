@@ -1,17 +1,20 @@
+
 import React, { useState, useEffect } from 'react';
 import GlassCard from './GlassCard';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface IdData {
   id: string;
+  game_id: string;
   clan: string;
   kagune: string;
-  isKaguneV2: boolean;
+  is_kagune_v2: boolean;
   rank: string;
   rc: number;
   gp: number;
   price: number;
-  isActive: boolean;
+  is_active: boolean;
   link?: string;
 }
 
@@ -21,25 +24,30 @@ const IdDetails = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const loadIdData = () => {
-      const storedData = localStorage.getItem('idData');
-      let data: IdData[] = [];
+    const loadIdData = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('set_id')
+          .select('*')
+          .eq('is_active', true);
 
-      if (storedData) {
-        try {
-          data = JSON.parse(storedData);
-          data = data.map(item => ({
-            ...item,
-            link: item.link && isValidUrl(item.link) ? item.link : 'https://www.facebook.com/is.Moyx'
-          }));
-          console.log('Loaded idData from localStorage:', data);
-        } catch (error) {
-          console.error('Error parsing idData from localStorage:', error);
+        if (error) {
+          throw error;
         }
-      }
 
-      setIdData(data.filter(item => item.isActive));
-      setLoading(false);
+        console.log('Loaded ID data from Supabase:', data);
+        setIdData(data || []);
+      } catch (error) {
+        console.error('Error fetching ID data from Supabase:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load ID data from the server.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadIdData();
@@ -75,7 +83,7 @@ const IdDetails = () => {
             className="relative overflow-visible border border-pink-300/30 shadow-lg shadow-pink-500/10 bordered-glow"
           >
             <div className="mb-4">
-              <h3 className="text-xl font-bold text-white">{data.id}</h3>
+              <h3 className="text-xl font-bold text-white">{data.game_id}</h3>
             </div>
 
             <div className="space-y-2 mb-6">
@@ -88,7 +96,7 @@ const IdDetails = () => {
                 <span className="text-glass-light">Kagune:</span>
                 <span className="font-medium text-white">
                   {data.kagune}
-                  {data.isKaguneV2 && (
+                  {data.is_kagune_v2 && (
                     <span className="ml-1 inline-flex items-center justify-center h-4 w-4 text-xs bg-green-300/20 text-green-300 rounded-full">
                       v2
                     </span>

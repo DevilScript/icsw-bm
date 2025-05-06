@@ -9,7 +9,105 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      set_clan: {
+        Row: {
+          clan: string
+          count: number
+          created_at: string | null
+          faction: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          clan: string
+          count?: number
+          created_at?: string | null
+          faction: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          clan?: string
+          count?: number
+          created_at?: string | null
+          faction?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      set_id: {
+        Row: {
+          clan: string
+          created_at: string | null
+          game_id: string
+          gp: number
+          id: string
+          is_active: boolean
+          is_kagune_v2: boolean
+          kagune: string
+          link: string | null
+          price: number
+          rank: string
+          rc: number
+          updated_at: string | null
+        }
+        Insert: {
+          clan: string
+          created_at?: string | null
+          game_id: string
+          gp: number
+          id?: string
+          is_active?: boolean
+          is_kagune_v2?: boolean
+          kagune: string
+          link?: string | null
+          price: number
+          rank: string
+          rc: number
+          updated_at?: string | null
+        }
+        Update: {
+          clan?: string
+          created_at?: string | null
+          game_id?: string
+          gp?: number
+          id?: string
+          is_active?: boolean
+          is_kagune_v2?: boolean
+          kagune?: string
+          link?: string | null
+          price?: number
+          rank?: string
+          rc?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      set_rc: {
+        Row: {
+          created_at: string | null
+          id: string
+          price: number
+          rc: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          price: number
+          rc: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          price?: number
+          rc?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Database, User, Flame } from 'lucide-react';
@@ -5,61 +6,72 @@ import IdWipeCounter, { ClanCount } from '@/components/IdWipeCounter';
 import { useToast } from '@/hooks/use-toast';
 import IdDetails from '@/components/IdDetails';
 import GlassCard from '@/components/GlassCard';
+import { supabase } from '@/integrations/supabase/client';
 
-// Mock data for RC
 interface RcData {
   rc: string;
   price: number;
 }
 
-const mockRcData: RcData[] = [
-  { rc: "8.5M", price: 50 },
-  { rc: "13M", price: 90 },
-  { rc: "26M", price: 150 },
-  { rc: "37M", price: 220 },
-  { rc: "75M", price: 330 },
-  { rc: "95M", price: 420 },
-  { rc: "190M", price: 850 },
-];
-
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState<string>("clans");
   const [wipeData, setWipeData] = useState<ClanCount[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [rcData, setRcData] = useState<RcData[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
-  // Auto-refresh data when the component gains focus
   useEffect(() => {
-    const loadData = () => {
+    async function fetchData() {
       setLoading(true);
       try {
-        const storedWipeData = localStorage.getItem('wipeData');
-        if (storedWipeData) {
-          const parsedData: ClanCount[] = JSON.parse(storedWipeData);
-          setWipeData(parsedData);
-        } else {
-          setWipeData([]);
+        // Fetch clan data from Supabase
+        const { data: clanData, error: clanError } = await supabase
+          .from('set_clan')
+          .select('clan, faction, count')
+          .order('faction', { ascending: true });
+
+        if (clanError) {
+          throw clanError;
         }
+
+        const formattedClanData: ClanCount[] = clanData.map(item => ({
+          clan: item.clan,
+          faction: item.faction,
+          count: item.count
+        }));
+
+        setWipeData(formattedClanData);
+
+        // Fetch RC data from Supabase
+        const { data: rcResult, error: rcError } = await supabase
+          .from('set_rc')
+          .select('rc, price')
+          .order('price', { ascending: true });
+
+        if (rcError) {
+          throw rcError;
+        }
+
+        setRcData(rcResult);
+
       } catch (error) {
-        console.error('Error loading wipeData from localStorage:', error);
+        console.error('Error fetching data from Supabase:', error);
         toast({
           title: "Error",
-          description: "Failed to load wipe data.",
+          description: "Failed to load data from the server.",
           variant: "destructive"
         });
-        setWipeData([]);
       } finally {
         setLoading(false);
       }
-    };
+    }
 
-    // Load data on mount
-    loadData();
+    fetchData();
 
     // Set up visibility change listener to refresh data
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        loadData();
+        fetchData();
       }
     };
 
@@ -67,7 +79,7 @@ const Dashboard = () => {
 
     // Set up focus event to refresh data
     const handleFocus = () => {
-      loadData();
+      fetchData();
     };
 
     window.addEventListener('focus', handleFocus);
@@ -139,14 +151,18 @@ const Dashboard = () => {
                       <span>Rc</span>
                       <span>Price</span>
                     </div>
-                    {mockRcData.map((item, index) => (
-                      <div key={index} className="grid grid-cols-2 gap-4">
-                        <span className="text-white font-medium">{item.rc}</span>
-                        <span className="text-glass-light">
-                          $<span className="text-pink-300 font-bold animate-pulse-grow">{item.price}</span>
-                        </span>
-                      </div>
-                    ))}
+                    {loading ? (
+                      <div className="text-center py-4 text-glass-light">Loading...</div>
+                    ) : (
+                      rcData.map((item, index) => (
+                        <div key={index} className="grid grid-cols-2 gap-4">
+                          <span className="text-white font-medium">{item.rc}</span>
+                          <span className="text-glass-light">
+                            $<span className="text-pink-300 font-bold animate-pulse-grow">{item.price}</span>
+                          </span>
+                        </div>
+                      ))
+                    )}
                   </div>
                   <a
                     href="https://www.facebook.com/is.Moyx"

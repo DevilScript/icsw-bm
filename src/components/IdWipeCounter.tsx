@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+
+import React from 'react';
 import GlassCard from './GlassCard';
 import CountBadge from './CountBadge';
 
@@ -14,21 +15,8 @@ interface IdWipeCounterProps {
 }
 
 const IdWipeCounter = ({ data, loading = false }: IdWipeCounterProps) => {
-  const [wipeData, setWipeData] = useState<ClanCount[]>(data);
-  
-  useEffect(() => {
-    // Get data from localStorage if available
-    const storedData = localStorage.getItem('wipeData');
-    if (storedData) {
-      setWipeData(JSON.parse(storedData));
-    } else {
-      // Store initial data to localStorage
-      localStorage.setItem('wipeData', JSON.stringify(data));
-    }
-  }, [data]);
-
   // Group data by faction
-  const factions = wipeData.reduce((acc, item) => {
+  const factions = data.reduce((acc, item) => {
     if (!acc[item.faction]) {
       acc[item.faction] = [];
     }

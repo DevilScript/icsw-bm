@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import GlassCard from '@/components/GlassCard';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { IdData } from '@/components/IdDetails';
+import { supabase } from '@/integrations/supabase/client';
 
 const Admin = () => {
   const { toast } = useToast();
@@ -16,17 +18,17 @@ const Admin = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   
   const [rcFormData, setRcFormData] = useState({
-    id: '',
+    game_id: '',
     clan: '',
     faction: 'None',
     kagune: '',
-    isKaguneV2: false,
+    is_kagune_v2: false,
     rank: 'A',
     rc: '',
     gp: '',
     price: '',
     link: 'https://www.facebook.com/is.Moyx',
-    isActive: true
+    is_active: true
   });
   
   const [wipeFormData, setWipeFormData] = useState({
@@ -37,17 +39,17 @@ const Admin = () => {
 
   const [editFormData, setEditFormData] = useState({
     selectedId: '',
-    id: '',
+    game_id: '',
     clan: '',
     faction: 'None',
     kagune: '',
-    isKaguneV2: false,
+    is_kagune_v2: false,
     rank: '',
     rc: '',
     gp: '',
     price: '',
     link: '',
-    isActive: true
+    is_active: true
   });
 
   const [removeId, setRemoveId] = useState('');
@@ -86,13 +88,18 @@ const Admin = () => {
   }, [toast]);
 
   useEffect(() => {
-    const loadSavedIds = () => {
+    const loadSavedIds = async () => {
       try {
-        const storedData = localStorage.getItem('idData');
-        if (storedData) {
-          setSavedIds(JSON.parse(storedData));
+        const { data, error } = await supabase
+          .from('set_id')
+          .select('*');
+          
+        if (error) {
+          throw error;
         }
-      } catch {
+        
+        setSavedIds(data || []);
+      } catch (error) {
         toast({
           title: "ข้อผิดพลาด",
           description: "ไม่สามารถโหลดข้อมูล ID ได้",
@@ -146,7 +153,7 @@ const Admin = () => {
     }
   };
 
-  const handleRcSubmit = (e: React.FormEvent) => {
+  const handleRcSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (rcFormData.faction === 'None') {
@@ -170,45 +177,57 @@ const Admin = () => {
     }
     
     try {
-      const storedData = localStorage.getItem('idData');
-      const idData = storedData ? JSON.parse(storedData) : [];
-      
       const newIdData = {
-        ...rcFormData,
+        game_id: rcFormData.game_id,
+        clan: rcFormData.clan,
+        kagune: rcFormData.kagune,
+        is_kagune_v2: rcFormData.is_kagune_v2,
+        rank: rcFormData.rank,
         rc: parseInt(rcFormData.rc) || 0,
         gp: parseInt(rcFormData.gp) || 0,
-        price: parseInt(rcFormData.price) || 0
+        price: parseInt(rcFormData.price) || 0,
+        link: rcFormData.link,
+        is_active: rcFormData.is_active
       };
       
-      idData.push(newIdData);
-      
-      localStorage.setItem('idData', JSON.stringify(idData));
+      const { error } = await supabase
+        .from('set_id')
+        .insert([newIdData]);
+        
+      if (error) {
+        throw error;
+      }
       
       toast({
         title: "สำเร็จ",
-        description: `เพิ่ม ID: ${rcFormData.id}`,
+        description: `เพิ่ม ID: ${rcFormData.game_id}`,
         duration: 5000,
       });
       
       setRcFormData({ 
-        id: '', 
+        game_id: '', 
         clan: rcFormData.clan, 
         faction: rcFormData.faction,
         kagune: rcFormData.kagune, 
-        isKaguneV2: false, 
+        is_kagune_v2: false, 
         rank: 'A', 
         rc: '', 
         gp: '', 
         price: '',
         link: 'https://www.facebook.com/is.Moyx',
-        isActive: true
+        is_active: true
       });
 
-      const updatedData = localStorage.getItem('idData');
-      if (updatedData) {
-        setSavedIds(JSON.parse(updatedData));
+      // Reload the updated data
+      const { data } = await supabase
+        .from('set_id')
+        .select('*');
+        
+      if (data) {
+        setSavedIds(data);
       }
-    } catch {
+    } catch (error) {
+      console.error('Error inserting ID data:', error);
       toast({
         title: "ข้อผิดพลาด",
         description: "ไม่สามารถบันทึกข้อมูล ID ได้",
@@ -218,7 +237,7 @@ const Admin = () => {
     }
   };
   
-  const handleWipeSubmit = (e: React.FormEvent) => {
+  const handleWipeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (wipeFormData.faction === 'None') {
@@ -252,24 +271,42 @@ const Admin = () => {
     }
     
     try {
-      const storedData = localStorage.getItem('wipeData');
-      const wipeData = storedData ? JSON.parse(storedData) : [];
-      
-      const clanIndex = wipeData.findIndex((item: any) => 
-        item.clan === wipeFormData.clan && item.faction === wipeFormData.faction
-      );
-      
-      if (clanIndex >= 0) {
-        wipeData[clanIndex].count = parseInt(wipeFormData.count);
-      } else {
-        wipeData.push({
-          clan: wipeFormData.clan,
-          faction: wipeFormData.faction,
-          count: parseInt(wipeFormData.count)
-        });
+      // Check if the clan already exists
+      const { data: existingClans, error: checkError } = await supabase
+        .from('set_clan')
+        .select('*')
+        .eq('clan', wipeFormData.clan)
+        .eq('faction', wipeFormData.faction);
+        
+      if (checkError) {
+        throw checkError;
       }
       
-      localStorage.setItem('wipeData', JSON.stringify(wipeData));
+      if (existingClans && existingClans.length > 0) {
+        // Update the existing clan
+        const { error: updateError } = await supabase
+          .from('set_clan')
+          .update({ count: parseInt(wipeFormData.count) })
+          .eq('clan', wipeFormData.clan)
+          .eq('faction', wipeFormData.faction);
+          
+        if (updateError) {
+          throw updateError;
+        }
+      } else {
+        // Insert a new clan
+        const { error: insertError } = await supabase
+          .from('set_clan')
+          .insert([{
+            clan: wipeFormData.clan,
+            faction: wipeFormData.faction,
+            count: parseInt(wipeFormData.count)
+          }]);
+          
+        if (insertError) {
+          throw insertError;
+        }
+      }
       
       toast({
         title: "สำเร็จ",
@@ -282,7 +319,8 @@ const Admin = () => {
         faction: wipeFormData.faction, 
         count: '' 
       });
-    } catch {
+    } catch (error) {
+      console.error('Error updating clan data:', error);
       toast({
         title: "ข้อผิดพลาด",
         description: "ไม่สามารถบันทึกข้อมูลตระกูลได้",
@@ -292,27 +330,28 @@ const Admin = () => {
     }
   };
 
-  const handleIdSelect = (selectedId: string) => {
+  const handleIdSelect = async (selectedId: string) => {
     try {
       const idToEdit = savedIds.find(id => id.id === selectedId);
       
       if (idToEdit) {
         setEditFormData({
           selectedId,
-          id: idToEdit.id,
+          game_id: idToEdit.game_id,
           clan: idToEdit.clan,
           faction: idToEdit.clan === 'Arima' || idToEdit.clan === 'Suzuya' ? 'CCG' : 'Ghoul',
           kagune: idToEdit.kagune,
-          isKaguneV2: idToEdit.isKaguneV2,
+          is_kagune_v2: idToEdit.is_kagune_v2,
           rank: idToEdit.rank,
           rc: idToEdit.rc.toString(),
           gp: idToEdit.gp.toString(),
           price: idToEdit.price.toString(),
           link: idToEdit.link || 'https://www.facebook.com/is.Moyx',
-          isActive: idToEdit.isActive
+          is_active: idToEdit.is_active
         });
       }
-    } catch {
+    } catch (error) {
+      console.error('Error selecting ID:', error);
       toast({
         title: "ข้อผิดพลาด",
         description: "ไม่สามารถเลือก ID เพื่อแก้ไขได้",
@@ -322,7 +361,7 @@ const Admin = () => {
     }
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (editFormData.faction === 'None') {
@@ -346,59 +385,59 @@ const Admin = () => {
     }
     
     try {
-      const storedData = localStorage.getItem('idData');
-      let idData = storedData ? JSON.parse(storedData) : [];
+      const updatedId = {
+        game_id: editFormData.game_id,
+        clan: editFormData.clan,
+        kagune: editFormData.kagune,
+        is_kagune_v2: editFormData.is_kagune_v2,
+        rank: editFormData.rank,
+        rc: parseInt(editFormData.rc) || 0,
+        gp: parseInt(editFormData.gp) || 0,
+        price: parseInt(editFormData.price) || 0,
+        link: editFormData.link,
+        is_active: editFormData.is_active
+      };
       
-      const idIndex = idData.findIndex((item: IdData) => item.id === editFormData.selectedId);
-      
-      if (idIndex >= 0) {
-        idData[idIndex] = {
-          ...idData[idIndex],
-          id: editFormData.id,
-          clan: editFormData.clan,
-          kagune: editFormData.kagune,
-          isKaguneV2: editFormData.isKaguneV2,
-          rank: editFormData.rank,
-          rc: parseInt(editFormData.rc) || 0,
-          gp: parseInt(editFormData.gp) || 0,
-          price: parseInt(editFormData.price) || 0,
-          link: editFormData.link,
-          isActive: editFormData.isActive
-        };
+      const { error } = await supabase
+        .from('set_id')
+        .update(updatedId)
+        .eq('id', editFormData.selectedId);
         
-        localStorage.setItem('idData', JSON.stringify(idData));
-        
-        toast({
-          title: "สำเร็จ",
-          description: `อัปเดต ID: ${editFormData.id}`,
-          duration: 5000,
-        });
-        
-        setSavedIds(idData);
-        
-        setEditFormData({
-          selectedId: '',
-          id: '',
-          clan: editFormData.clan,
-          faction: editFormData.faction,
-          kagune: editFormData.kagune,
-          isKaguneV2: false,
-          rank: '',
-          rc: '',
-          gp: '',
-          price: '',
-          link: '',
-          isActive: true
-        });
-      } else {
-        toast({
-          title: "ข้อผิดพลาด",
-          description: "ไม่พบ ID",
-          variant: "destructive",
-          duration: 7000,
-        });
+      if (error) {
+        throw error;
       }
-    } catch {
+      
+      toast({
+        title: "สำเร็จ",
+        description: `อัปเดต ID: ${editFormData.game_id}`,
+        duration: 5000,
+      });
+      
+      // Reload the updated data
+      const { data } = await supabase
+        .from('set_id')
+        .select('*');
+        
+      if (data) {
+        setSavedIds(data);
+      }
+      
+      setEditFormData({
+        selectedId: '',
+        game_id: '',
+        clan: editFormData.clan,
+        faction: editFormData.faction,
+        kagune: editFormData.kagune,
+        is_kagune_v2: false,
+        rank: '',
+        rc: '',
+        gp: '',
+        price: '',
+        link: '',
+        is_active: true
+      });
+    } catch (error) {
+      console.error('Error updating ID:', error);
       toast({
         title: "ข้อผิดพลาด",
         description: "ไม่สามารถอัปเดตข้อมูล ID ได้",
@@ -408,36 +447,37 @@ const Admin = () => {
     }
   };
 
-  const handleRemoveSubmit = (e: React.FormEvent) => {
+  const handleRemoveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
-      const storedData = localStorage.getItem('idData');
-      let idData = storedData ? JSON.parse(storedData) : [];
-      
-      const newIdData = idData.filter((item: IdData) => item.id !== removeId);
-      
-      if (newIdData.length < idData.length) {
-        localStorage.setItem('idData', JSON.stringify(newIdData));
+      const { error } = await supabase
+        .from('set_id')
+        .delete()
+        .eq('id', removeId);
         
-        toast({
-          title: "สำเร็จ",
-          description: `ลบ ID: ${removeId}`,
-          duration: 5000,
-        });
-        
-        setSavedIds(newIdData);
-        
-        setRemoveId('');
-      } else {
-        toast({
-          title: "ข้อผิดพลาด",
-          description: "ไม่พบ ID",
-          variant: "destructive",
-          duration: 7000,
-        });
+      if (error) {
+        throw error;
       }
-    } catch {
+      
+      toast({
+        title: "สำเร็จ",
+        description: `ลบ ID เสร็จสิ้น`,
+        duration: 5000,
+      });
+      
+      // Reload the updated data
+      const { data } = await supabase
+        .from('set_id')
+        .select('*');
+        
+      if (data) {
+        setSavedIds(data);
+      }
+      
+      setRemoveId('');
+    } catch (error) {
+      console.error('Error removing ID:', error);
       toast({
         title: "ข้อผิดพลาด",
         description: "ไม่สามารถลบข้อมูล ID ได้",
@@ -530,8 +570,8 @@ const Admin = () => {
                       id="rc-id" 
                       placeholder="กรอก ID" 
                       className="glass-input border-pink-300/30 focus:border-pink-300/50"
-                      value={rcFormData.id}
-                      onChange={(e) => setRcFormData({...rcFormData, id: e.target.value})}
+                      value={rcFormData.game_id}
+                      onChange={(e) => setRcFormData({...rcFormData, game_id: e.target.value})}
                       required
                     />
                   </div>
@@ -560,7 +600,7 @@ const Admin = () => {
                         key={rcFormData.faction}
                         value={rcFormData.clan}
                         onValueChange={(val) => {
-                          if (val && clans[rcFormData.faction]?.includes(val)) {
+                          if (val && clans[rcFormData.faction as keyof typeof clans]?.includes(val)) {
                             setRcFormData({...rcFormData, clan: val});
                           }
                         }}
@@ -570,7 +610,7 @@ const Admin = () => {
                           <SelectValue placeholder="เลือกตระกูล" />
                         </SelectTrigger>
                         <SelectContent>
-                          {rcFormData.faction !== 'None' && clans[rcFormData.faction]?.map((clan) => (
+                          {rcFormData.faction !== 'None' && clans[rcFormData.faction as keyof typeof clans]?.map((clan) => (
                             <SelectItem key={clan} value={clan}>{clan}</SelectItem>
                           ))}
                         </SelectContent>
@@ -619,9 +659,9 @@ const Admin = () => {
                   <div className="flex items-center space-x-2">
                     <Checkbox 
                       id="kaguneV2" 
-                      checked={rcFormData.isKaguneV2}
+                      checked={rcFormData.is_kagune_v2}
                       onCheckedChange={(checked) => 
-                        setRcFormData({...rcFormData, isKaguneV2: checked as boolean})
+                        setRcFormData({...rcFormData, is_kagune_v2: checked as boolean})
                       }
                       className="border-pink-300/30 data-[state=checked]:bg-pink-300 data-[state=checked]:border-pink-300"
                     />
@@ -721,7 +761,7 @@ const Admin = () => {
                       key={wipeFormData.faction}
                       value={wipeFormData.clan}
                       onValueChange={(val) => {
-                        if (val && clans[wipeFormData.faction]?.includes(val)) {
+                        if (val && clans[wipeFormData.faction as keyof typeof clans]?.includes(val)) {
                           setWipeFormData({...wipeFormData, clan: val});
                         }
                       }}
@@ -731,7 +771,7 @@ const Admin = () => {
                         <SelectValue placeholder="เลือกตระกูล" />
                       </SelectTrigger>
                       <SelectContent>
-                        {wipeFormData.faction !== 'None' && clans[wipeFormData.faction]?.map((clan) => (
+                        {wipeFormData.faction !== 'None' && clans[wipeFormData.faction as keyof typeof clans]?.map((clan) => (
                           <SelectItem key={clan} value={clan}>{clan}</SelectItem>
                         ))}
                       </SelectContent>
@@ -776,7 +816,7 @@ const Admin = () => {
                       <SelectContent>
                         {savedIds.map((id) => (
                           <SelectItem key={id.id} value={id.id}>
-                            {id.id} - {id.clan}
+                            {id.game_id} - {id.clan}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -791,8 +831,8 @@ const Admin = () => {
                           id="edit-id" 
                           placeholder="กรอก ID" 
                           className="glass-input border-pink-300/30 focus:border-pink-300/50"
-                          value={editFormData.id}
-                          onChange={(e) => setEditFormData({...editFormData, id: e.target.value})}
+                          value={editFormData.game_id}
+                          onChange={(e) => setEditFormData({...editFormData, game_id: e.target.value})}
                           required
                         />
                       </div>
@@ -821,7 +861,7 @@ const Admin = () => {
                             key={editFormData.faction}
                             value={editFormData.clan}
                             onValueChange={(val) => {
-                              if (val && clans[editFormData.faction]?.includes(val)) {
+                              if (val && clans[editFormData.faction as keyof typeof clans]?.includes(val)) {
                                 setEditFormData({...editFormData, clan: val});
                               }
                             }}
@@ -831,7 +871,7 @@ const Admin = () => {
                               <SelectValue placeholder="เลือกตระกูล" />
                             </SelectTrigger>
                             <SelectContent>
-                              {editFormData.faction !== 'None' && clans[editFormData.faction]?.map((clan) => (
+                              {editFormData.faction !== 'None' && clans[editFormData.faction as keyof typeof clans]?.map((clan) => (
                                 <SelectItem key={clan} value={clan}>{clan}</SelectItem>
                               ))}
                             </SelectContent>
@@ -880,9 +920,9 @@ const Admin = () => {
                       <div className="flex items-center space-x-2">
                         <Checkbox 
                           id="edit-kaguneV2" 
-                          checked={editFormData.isKaguneV2}
+                          checked={editFormData.is_kagune_v2}
                           onCheckedChange={(checked) => 
-                            setEditFormData({...editFormData, isKaguneV2: checked as boolean})
+                            setEditFormData({...editFormData, is_kagune_v2: checked as boolean})
                           }
                           className="border-pink-300/30 data-[state=checked]:bg-pink-300 data-[state=checked]:border-pink-300"
                         />
@@ -973,7 +1013,7 @@ const Admin = () => {
                       <SelectContent>
                         {savedIds.map((id) => (
                           <SelectItem key={id.id} value={id.id}>
-                            {id.id} - {id.clan}
+                            {id.game_id} - {id.clan}
                           </SelectItem>
                         ))}
                       </SelectContent>
