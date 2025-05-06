@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,11 +11,21 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { IdData } from '@/components/IdDetails';
 import { supabase } from '@/integrations/supabase/client';
 
+// RC Data type
+interface RcData {
+  id: string;
+  rc: string;
+  price: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 const Admin = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   
+  // RC form state
   const [rcFormData, setRcFormData] = useState({
     game_id: '',
     clan: '',
@@ -31,6 +40,22 @@ const Admin = () => {
     is_active: true
   });
   
+  // RC Management states
+  const [rcManageData, setRcManageData] = useState({
+    rc: '',
+    price: '',
+  });
+  
+  const [editRcData, setEditRcData] = useState({
+    selectedId: '',
+    rc: '',
+    price: '',
+  });
+  
+  const [removeRcId, setRemoveRcId] = useState('');
+  const [savedRcItems, setSavedRcItems] = useState<RcData[]>([]);
+  
+  // Other existing states
   const [wipeFormData, setWipeFormData] = useState({
     clan: '',
     faction: 'None',
@@ -87,22 +112,34 @@ const Admin = () => {
     };
   }, [toast]);
 
+  // Load saved IDs and RC items when authenticated
   useEffect(() => {
     const loadSavedIds = async () => {
       try {
-        const { data, error } = await supabase
+        const { data: idData, error: idError } = await supabase
           .from('set_id')
           .select('*');
           
-        if (error) {
-          throw error;
+        if (idError) {
+          throw idError;
         }
         
-        setSavedIds(data || []);
+        setSavedIds(idData || []);
+        
+        // Load RC data
+        const { data: rcData, error: rcError } = await supabase
+          .from('set_rc')
+          .select('*');
+          
+        if (rcError) {
+          throw rcError;
+        }
+        
+        setSavedRcItems(rcData || []);
       } catch (error) {
         toast({
           title: "ข้อผิดพลาด",
-          description: "ไม่สามารถโหลดข้อมูล ID ได้",
+          description: "ไม่สามารถโหลดข้อมูลได้",
           variant: "destructive",
           duration: 7000,
         });
@@ -113,6 +150,39 @@ const Admin = () => {
       loadSavedIds();
     }
   }, [isAuthenticated, toast]);
+  
+  // Setup realtime subscription for RC data changes
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const rcChannel = supabase
+      .channel('set_rc_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'set_rc' }, 
+        () => {
+          // Reload RC data when changes occur
+          const loadRcData = async () => {
+            const { data, error } = await supabase
+              .from('set_rc')
+              .select('*');
+              
+            if (error) {
+              console.error('Error loading RC data:', error);
+              return;
+            }
+            
+            setSavedRcItems(data || []);
+          };
+          
+          loadRcData();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(rcChannel);
+    };
+  }, [isAuthenticated]);
 
   const handleFactionChange = (faction: string, formType: 'add' | 'edit' | 'wipe') => {
     let newClan = '';
@@ -487,6 +557,184 @@ const Admin = () => {
     }
   };
 
+  const handleRcManageSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!rcManageData.rc || !rcManageData.price) {
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "โปรดกรอกค่า RC และราคาให้ครบถ้วน",
+        variant: "destructive",
+        duration: 7000,
+      });
+      return;
+    }
+    
+    try {
+      const newRcData = {
+        rc: rcManageData.rc,
+        price: parseInt(rcManageData.price) || 0
+      };
+      
+      const { error } = await supabase
+        .from('set_rc')
+        .insert([newRcData]);
+        
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "สำเร็จ",
+        description: `เพิ่ม RC: ${rcManageData.rc}`,
+        duration: 5000,
+      });
+      
+      setRcManageData({ 
+        rc: '', 
+        price: '', 
+      });
+      
+      // Reload the updated data
+      const { data } = await supabase
+        .from('set_rc')
+        .select('*');
+        
+      if (data) {
+        setSavedRcItems(data);
+      }
+    } catch (error) {
+      console.error('Error inserting RC data:', error);
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถบันทึกข้อมูล RC ได้",
+        variant: "destructive",
+        duration: 7000,
+      });
+    }
+  };
+
+  const handleEditRcSelect = async (selectedId: string) => {
+    try {
+      const rcToEdit = savedRcItems.find(item => item.id === selectedId);
+      
+      if (rcToEdit) {
+        setEditRcData({
+          selectedId,
+          rc: rcToEdit.rc,
+          price: rcToEdit.price.toString(),
+        });
+      }
+    } catch (error) {
+      console.error('Error selecting RC:', error);
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถเลือก RC เพื่อแก้ไขได้",
+        variant: "destructive",
+        duration: 7000,
+      });
+    }
+  };
+
+  const handleEditRcSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editRcData.rc || !editRcData.price) {
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "โปรดกรอกค่า RC และราคาให้ครบถ้วน",
+        variant: "destructive",
+        duration: 7000,
+      });
+      return;
+    }
+    
+    try {
+      const updatedRc = {
+        rc: editRcData.rc,
+        price: parseInt(editRcData.price) || 0,
+      };
+      
+      const { error } = await supabase
+        .from('set_rc')
+        .update(updatedRc)
+        .eq('id', editRcData.selectedId);
+        
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "สำเร็จ",
+        description: `อัปเดต RC: ${editRcData.rc}`,
+        duration: 5000,
+      });
+      
+      // Reload the updated data
+      const { data } = await supabase
+        .from('set_rc')
+        .select('*');
+        
+      if (data) {
+        setSavedRcItems(data);
+      }
+      
+      setEditRcData({
+        selectedId: '',
+        rc: '',
+        price: '',
+      });
+    } catch (error) {
+      console.error('Error updating RC:', error);
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถอัปเดตข้อมูล RC ได้",
+        variant: "destructive",
+        duration: 7000,
+      });
+    }
+  };
+
+  const handleRemoveRcSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const { error } = await supabase
+        .from('set_rc')
+        .delete()
+        .eq('id', removeRcId);
+        
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "สำเร็จ",
+        description: `ลบ RC เสร็จสิ้น`,
+        duration: 5000,
+      });
+      
+      // Reload the updated data
+      const { data } = await supabase
+        .from('set_rc')
+        .select('*');
+        
+      if (data) {
+        setSavedRcItems(data);
+      }
+      
+      setRemoveRcId('');
+    } catch (error) {
+      console.error('Error removing RC:', error);
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถลบข้อมูล RC ได้",
+        variant: "destructive",
+        duration: 7000,
+      });
+    }
+  };
+
   const handleLogout = () => {
     try {
       localStorage.removeItem('adminAuthenticated');
@@ -556,6 +804,9 @@ const Admin = () => {
               </TabsTrigger>
               <TabsTrigger value="remove-id" className="data-[state=active]:bg-pink-300/80 data-[state=active]:text-white">
                 ลบ ID
+              </TabsTrigger>
+              <TabsTrigger value="manage-rc" className="data-[state=active]:bg-pink-300/80 data-[state=active]:text-white">
+                จัดการ RC
               </TabsTrigger>
             </TabsList>
           </div>
@@ -1028,6 +1279,176 @@ const Admin = () => {
                     ลบ ID ที่เลือก
                   </Button>
                 </form>
+              </GlassCard>
+            </TabsContent>
+
+            {/* New RC Management Tab */}
+            <TabsContent value="manage-rc" className="mt-0">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Add RC */}
+                <GlassCard className="border border-pink-300/30 shadow-md">
+                  <h3 className="text-lg font-medium text-white mb-4">เพิ่ม RC</h3>
+                  <form onSubmit={handleRcManageSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="add-rc">ค่า RC</Label>
+                      <Input 
+                        id="add-rc" 
+                        placeholder="กรอกค่า RC" 
+                        className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                        value={rcManageData.rc}
+                        onChange={(e) => setRcManageData({...rcManageData, rc: e.target.value})}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="add-rc-price">ราคา ($)</Label>
+                      <Input 
+                        id="add-rc-price" 
+                        type="number"
+                        placeholder="ราคา" 
+                        className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                        value={rcManageData.price}
+                        onChange={(e) => setRcManageData({...rcManageData, price: e.target.value})}
+                        required
+                      />
+                    </div>
+                    
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-md transition-all duration-200"
+                    >
+                      เพิ่ม RC
+                    </Button>
+                  </form>
+                </GlassCard>
+                
+                {/* Edit RC */}
+                <GlassCard className="border border-pink-300/30 shadow-md">
+                  <h3 className="text-lg font-medium text-white mb-4">แก้ไข RC</h3>
+                  <form onSubmit={handleEditRcSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-select-rc">เลือก RC เพื่อแก้ไข</Label>
+                      <Select 
+                        value={editRcData.selectedId}
+                        onValueChange={handleEditRcSelect}
+                      >
+                        <SelectTrigger className="glass-input border-pink-300/30">
+                          <SelectValue placeholder="เลือก RC" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {savedRcItems.map((item) => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.rc} - ${item.price}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {editRcData.selectedId && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-rc">ค่า RC</Label>
+                          <Input 
+                            id="edit-rc" 
+                            placeholder="กรอกค่า RC" 
+                            className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                            value={editRcData.rc}
+                            onChange={(e) => setEditRcData({...editRcData, rc: e.target.value})}
+                            required
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-rc-price">ราคา ($)</Label>
+                          <Input 
+                            id="edit-rc-price" 
+                            type="number"
+                            placeholder="ราคา" 
+                            className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                            value={editRcData.price}
+                            onChange={(e) => setEditRcData({...editRcData, price: e.target.value})}
+                            required
+                          />
+                        </div>
+                        
+                        <Button 
+                          type="submit" 
+                          className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-md transition-all duration-200"
+                        >
+                          อัปเดต RC
+                        </Button>
+                      </>
+                    )}
+                  </form>
+                </GlassCard>
+                
+                {/* Remove RC */}
+                <GlassCard className="border border-pink-300/30 shadow-md">
+                  <h3 className="text-lg font-medium text-white mb-4">ลบ RC</h3>
+                  <form onSubmit={handleRemoveRcSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="remove-rc">เลือก RC เพื่อลบ</Label>
+                      <Select 
+                        value={removeRcId}
+                        onValueChange={setRemoveRcId}
+                      >
+                        <SelectTrigger className="glass-input border-pink-300/30">
+                          <SelectValue placeholder="เลือก RC" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {savedRcItems.map((item) => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.rc} - ${item.price}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-red-500/80 hover:bg-red-500 text-white border border-red-300/30 shadow-md transition-all duration-200"
+                      disabled={!removeRcId}
+                    >
+                      ลบ RC ที่เลือก
+                    </Button>
+                  </form>
+                </GlassCard>
+              </div>
+              
+              {/* RC Items List */}
+              <GlassCard className="border border-pink-300/30 shadow-md mt-6">
+                <h3 className="text-lg font-medium text-white mb-4">รายการ RC ทั้งหมด</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b border-pink-300/20">
+                        <th className="py-2 px-4 text-left text-pink-300">RC</th>
+                        <th className="py-2 px-4 text-left text-pink-300">ราคา ($)</th>
+                        <th className="py-2 px-4 text-left text-pink-300">เวลาสร้าง</th>
+                        <th className="py-2 px-4 text-left text-pink-300">เวลาอัพเดท</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {savedRcItems.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="py-4 text-center text-glass-light">ไม่พบข้อมูล RC</td>
+                        </tr>
+                      ) : (
+                        savedRcItems.map((item) => (
+                          <tr key={item.id} className="border-b border-pink-300/10 hover:bg-pink-300/5">
+                            <td className="py-2 px-4 text-white">{item.rc}</td>
+                            <td className="py-2 px-4 text-white">${item.price}</td>
+                            <td className="py-2 px-4 text-glass-light">{new Date(item.created_at || '').toLocaleString()}</td>
+                            <td className="py-2 px-4 text-glass-light">{new Date(item.updated_at || '').toLocaleString()}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </GlassCard>
             </TabsContent>
           </div>
