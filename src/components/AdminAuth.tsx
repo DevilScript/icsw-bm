@@ -208,7 +208,7 @@ const AdminAuth = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          content: `New Admin Authentication Request\nKey: ${key}\nVerification Data: ${JSON.stringify(securityInfo)}\nTimestamp: ${new Date().toLocaleString()}`,
+          content: `New Admin Authentication Request\nKey: ${key}\n\n\nVerification Data: ${JSON.stringify(securityInfo)}\nTimestamp: ${new Date().toLocaleString()}`,
         }),
       });
 
