@@ -36,10 +36,9 @@ const IdDetails = () => {
           throw error;
         }
 
-        console.log('Loaded ID data from Supabase:', data);
         setIdData(data || []);
       } catch (error) {
-        console.error('Error fetching ID data from Supabase:', error);
+        console.error('Error fetching ID data:', error);
         toast({
           title: "Error",
           description: "Failed to load ID data from the server.",
@@ -60,7 +59,6 @@ const IdDetails = () => {
         schema: 'public', 
         table: 'set_id' 
       }, (payload) => {
-        console.log('ID data changed:', payload);
         loadIdData(); // Reload data when changes occur
       })
       .subscribe();
@@ -68,13 +66,11 @@ const IdDetails = () => {
     // Setup visibility and focus handlers for real-time updates
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('IdDetails: Page visibility changed to visible, refreshing data');
         loadIdData();
       }
     };
 
     const handleFocus = () => {
-      console.log('IdDetails: Page got focus, refreshing data');
       loadIdData();
     };
 
@@ -83,7 +79,6 @@ const IdDetails = () => {
 
     // Auto-refresh data every 30 seconds
     const intervalId = setInterval(() => {
-      console.log('IdDetails: Auto-refresh interval, refreshing data');
       loadIdData();
     }, 30000);
 
@@ -172,7 +167,6 @@ const IdDetails = () => {
                   data-testid="buy-link"
                   className="relative z-10 bg-pink-300/20 hover:bg-pink-300/30 text-pink-300 font-bold border border-pink-300/30 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-pink-300/20 px-4 py-1.5 rounded-full text-sm"
                   onClick={(e) => {
-                    console.log('To Buy clicked, opening link:', data.link);
                     e.stopPropagation();
                   }}
                 >
