@@ -52,11 +52,9 @@ const AdminAuth = () => {
                 navigate('/admin');
                 return;
               } else {
-                console.error('Token verification failed');
                 handleLogout('Token verification failed');
               }
             } catch (err) {
-              console.error('Auth verification failed', err);
               handleLogout('Authentication error');
             }
           } else {
@@ -65,7 +63,6 @@ const AdminAuth = () => {
           }
         }
       } catch (error) {
-        console.error('Auth check error:', error);
         toast({
           title: "ข้อผิดพลาด",
           description: "ไม่สามารถตรวจสอบการยืนยันตัวตนได้ โปรดลองใหม่",
@@ -100,7 +97,6 @@ const AdminAuth = () => {
       const combinedData = `${userAgentData}|${screenData}|${timeZone}|${language}`;
       return btoa(combinedData);
     } catch (error) {
-      console.error('Error generating client hash:', error);
       return btoa(navigator.userAgent + Date.now().toString());
     }
   };
@@ -115,7 +111,6 @@ const AdminAuth = () => {
       // Create a more stable fingerprint that shouldn't change between sessions
       return btoa(`${screenProps}|${timeZone}|${languages}`);
     } catch (error) {
-      console.error('Error generating fingerprint:', error);
       return '';
     }
   };
@@ -133,7 +128,6 @@ const AdminAuth = () => {
       const baseHash = btoa(clientHash + timestamp);
       return baseHash.substring(0, 16);
     } catch (error) {
-      console.error('Error generating token hash:', error);
       return '';
     }
   };
@@ -150,7 +144,6 @@ const AdminAuth = () => {
       // Combine for the complete token
       return `${tokenHash}${randomSalt}`;
     } catch (error) {
-      console.error('Error generating security token:', error);
       return '';
     }
   };
@@ -222,7 +215,6 @@ const AdminAuth = () => {
       setIsLoading(false);
       return true;
     } catch (error) {
-      console.error('Failed to send key to Discord:', error);
       toast({
         title: "Error",
         description: "Failed to send key to Discord. Please try again or contact support.",
