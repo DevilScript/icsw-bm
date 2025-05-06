@@ -52,9 +52,9 @@ const IdDetails = () => {
 
     loadIdData();
 
-    // Setup realtime subscription for ID table
+    // Setup real-time subscription for ID table
     const idChannel = supabase
-      .channel('public:set_id')
+      .channel('id-details-changes')
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
@@ -65,8 +65,33 @@ const IdDetails = () => {
       })
       .subscribe();
 
+    // Setup visibility and focus handlers for real-time updates
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('IdDetails: Page visibility changed to visible, refreshing data');
+        loadIdData();
+      }
+    };
+
+    const handleFocus = () => {
+      console.log('IdDetails: Page got focus, refreshing data');
+      loadIdData();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    // Auto-refresh data every 30 seconds
+    const intervalId = setInterval(() => {
+      console.log('IdDetails: Auto-refresh interval, refreshing data');
+      loadIdData();
+    }, 30000);
+
     // Cleanup
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(intervalId);
       supabase.removeChannel(idChannel);
     };
   }, [toast]);

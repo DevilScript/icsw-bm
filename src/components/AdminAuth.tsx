@@ -15,45 +15,110 @@ const AdminAuth = () => {
   const [authStep, setAuthStep] = useState<number>(1); // Added auth step tracking
   const [securityToken, setSecurityToken] = useState<string>(''); // Added security token
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [authAttempts, setAuthAttempts] = useState<number>(0);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   // Check if admin is authenticated on mount
   useEffect(() => {
-    const checkAdminAuth = async () => {
-      const adminAuth = localStorage.getItem('adminAuthenticated');
-      const authTimestamp = localStorage.getItem('auth_key_timestamp');
-      const storedToken = localStorage.getItem('security_token');
-      
-      // Check if auth is still valid (24 hour expiry)
-      if (adminAuth === 'true' && authTimestamp && storedToken) {
-        const now = new Date().getTime();
-        const authTime = new Date(authTimestamp).getTime();
-        const hoursDiff = (now - authTime) / (1000 * 60 * 60);
+    let intervalId: NodeJS.Timeout;
+
+    const checkAuth = () => {
+      try {
+        const adminAuth = localStorage.getItem('adminAuthenticated');
+        const authTimestamp = localStorage.getItem('auth_key_timestamp');
+        const storedToken = localStorage.getItem('security_token');
+        const storedFingerprint = localStorage.getItem('auth_fingerprint');
         
-        if (hoursDiff < 24) {
-          // Verify token with server
-          try {
-            // Simple hash check to verify the token hasn't been tampered with
-            const clientHash = btoa(navigator.userAgent + window.screen.width + window.screen.height);
-            const expectedTokenHash = btoa(clientHash + authTimestamp).substring(0, 16);
-            
-            if (storedToken.startsWith(expectedTokenHash)) {
-              navigate('/admin');
-              return;
+        // Check if auth is still valid (24 hour expiry)
+        if (adminAuth === 'true' && authTimestamp && storedToken && storedFingerprint) {
+          const now = new Date().getTime();
+          const authTime = new Date(authTimestamp).getTime();
+          const hoursDiff = (now - authTime) / (1000 * 60 * 60);
+          
+          // Generate current fingerprint for verification
+          const currentFingerprint = generateFingerprint();
+          
+          if (hoursDiff < 24 && storedFingerprint === currentFingerprint) {
+            // Verify token with server
+            try {
+              // Generate device hash for verification
+              const clientHash = generateClientHash();
+              // Create expected token format for verification
+              const expectedTokenHash = generateTokenHash(clientHash, authTimestamp);
+              
+              // Verify token starts with expected hash
+              if (storedToken.startsWith(expectedTokenHash)) {
+                navigate('/admin');
+                return;
+              } else {
+                console.error('Token verification failed');
+                handleLogout('Token verification failed');
+              }
+            } catch (err) {
+              console.error('Auth verification failed', err);
+              handleLogout('Authentication error');
             }
-          } catch (err) {
-            console.error('Auth verification failed', err);
+          } else {
+            // Auth expired or device changed
+            handleLogout(hoursDiff >= 24 ? 'Session expired' : 'Device verification failed');
           }
         }
-        
-        // Auth expired or invalid
-        handleLogout();
+      } catch (error) {
+        console.error('Auth check error:', error);
+        toast({
+          title: "ข้อผิดพลาด",
+          description: "ไม่สามารถตรวจสอบการยืนยันตัวตนได้ โปรดลองใหม่",
+          variant: "destructive",
+          duration: 7000,
+        });
+        setIsAuthenticated(false);
       }
     };
-    
-    checkAdminAuth();
-  }, [navigate]);
+
+    const timeoutId = setTimeout(() => {
+      checkAuth();
+      intervalId = setInterval(checkAuth, 500);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
+  }, [toast, navigate]);
+
+  // Generate a more robust client hash using multiple browser characteristics
+  const generateClientHash = (): string => {
+    try {
+      // Combine various browser properties for a more unique fingerprint
+      const userAgentData = navigator.userAgent;
+      const screenData = `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`;
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const language = navigator.language;
+      
+      // Create hash from combined data
+      const combinedData = `${userAgentData}|${screenData}|${timeZone}|${language}`;
+      return btoa(combinedData);
+    } catch (error) {
+      console.error('Error generating client hash:', error);
+      return btoa(navigator.userAgent + Date.now().toString());
+    }
+  };
+
+  // Generate a device fingerprint that's saved for verification
+  const generateFingerprint = (): string => {
+    try {
+      const screenProps = `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`;
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const languages = navigator.languages ? navigator.languages.join(',') : navigator.language;
+      
+      // Create a more stable fingerprint that shouldn't change between sessions
+      return btoa(`${screenProps}|${timeZone}|${languages}`);
+    } catch (error) {
+      console.error('Error generating fingerprint:', error);
+      return '';
+    }
+  };
 
   // Generate a random key function using crypto
   const generateRandomKey = (): string => {
@@ -62,12 +127,39 @@ const AdminAuth = () => {
     return Array.from(array, byte => ('0' + byte.toString(16)).slice(-2)).join('');
   };
 
+  // Create a more secure token hash
+  const generateTokenHash = (clientHash: string, timestamp: string): string => {
+    try {
+      const baseHash = btoa(clientHash + timestamp);
+      return baseHash.substring(0, 16);
+    } catch (error) {
+      console.error('Error generating token hash:', error);
+      return '';
+    }
+  };
+
   // Create a more secure token
   const generateSecurityToken = (clientHash: string, timestamp: string): string => {
-    // Create a token that combines hash + timestamp + random elements
-    const baseHash = btoa(clientHash + timestamp);
-    const randomSalt = generateRandomKey().substring(0, 8);
-    return baseHash.substring(0, 16) + randomSalt;
+    try {
+      // Create the token hash portion
+      const tokenHash = generateTokenHash(clientHash, timestamp);
+      
+      // Add a random salt component
+      const randomSalt = generateRandomKey().substring(0, 8);
+      
+      // Combine for the complete token
+      return `${tokenHash}${randomSalt}`;
+    } catch (error) {
+      console.error('Error generating security token:', error);
+      return '';
+    }
+  };
+
+  // Function to set authentication state
+  const setIsAuthenticated = (isAuth: boolean) => {
+    if (!isAuth) {
+      handleLogout();
+    }
   };
 
   // Send key to Discord webhook with additional security
@@ -90,24 +182,24 @@ const AdminAuth = () => {
     try {
       // Add timestamp and client information for security
       const timestamp = new Date().toISOString();
-      const clientHash = btoa(navigator.userAgent + window.screen.width + window.screen.height);
+      const clientHash = generateClientHash();
       const token = generateSecurityToken(clientHash, timestamp);
+      const fingerprint = generateFingerprint();
+      
       setSecurityToken(token);
       
-      // Store token and timestamp for verification
+      // Store token, timestamp and fingerprint for verification
       localStorage.setItem('security_token', token);
       localStorage.setItem('auth_client_hash', clientHash);
       localStorage.setItem('auth_key_timestamp', timestamp);
+      localStorage.setItem('auth_fingerprint', fingerprint);
 
       // Add additional IP fingerprinting and device info
       const securityInfo = {
         timestamp,
-        userAgent: navigator.userAgent,
-        screen: `${window.screen.width}x${window.screen.height}`,
-        colorDepth: window.screen.colorDepth,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        language: navigator.language,
-        tokenHash: btoa(token).substring(0, 8) // Only send a hash of the token for verification
+        tokenHash: btoa(token).substring(0, 8), // Only send a hash of the token
+        fingerprint: btoa(fingerprint).substring(0, 8), // Only send a hash of the fingerprint
+        auth_attempt: authAttempts + 1
       };
       
       const response = await fetch(webhookUrl, {
@@ -124,10 +216,13 @@ const AdminAuth = () => {
         throw new Error('Failed to send key to Discord');
       }
       
+      // Update auth attempt counter
+      setAuthAttempts(prev => prev + 1);
       setAuthStep(2); // Move to next auth step
       setIsLoading(false);
       return true;
     } catch (error) {
+      console.error('Failed to send key to Discord:', error);
       toast({
         title: "Error",
         description: "Failed to send key to Discord. Please try again or contact support.",
@@ -151,15 +246,20 @@ const AdminAuth = () => {
     e.preventDefault();
     setIsLoading(true);
     
+    // Enhanced security checks
     // Get stored security data for verification
     const storedClientHash = localStorage.getItem('auth_client_hash');
     const storedTimestamp = localStorage.getItem('auth_key_timestamp');
     const storedToken = localStorage.getItem('security_token');
-    const currentHash = btoa(navigator.userAgent + window.screen.width + window.screen.height);
+    const storedFingerprint = localStorage.getItem('auth_fingerprint');
+    const currentHash = generateClientHash();
+    const currentFingerprint = generateFingerprint();
+    
+    // Get used keys from local storage
     const usedKeys = JSON.parse(localStorage.getItem('usedKeys') || '[]');
     
-    // Enhanced security check - multiple verification points
-    if (!storedClientHash || !storedTimestamp || !storedToken || !securityToken) {
+    // Multi-factor verification
+    if (!storedClientHash || !storedTimestamp || !storedToken || !securityToken || !storedFingerprint) {
       toast({
         title: "Security Alert",
         description: "Authentication sequence violation. Please restart authentication.",
@@ -181,12 +281,40 @@ const AdminAuth = () => {
       setIsLoading(false);
       return;
     }
+
+    // Verify device fingerprint
+    if (storedFingerprint !== currentFingerprint) {
+      toast({
+        title: "Security Alert",
+        description: "Device fingerprint verification failed.",
+        variant: "destructive",
+      });
+      handleLogout();
+      setIsLoading(false);
+      return;
+    }
     
     // Verify token matches
     if (storedToken !== securityToken) {
       toast({
         title: "Security Alert",
         description: "Token verification failed. Authentication compromised.",
+        variant: "destructive",
+      });
+      handleLogout();
+      setIsLoading(false);
+      return;
+    }
+
+    // Check key expiration - keys are valid for 5 minutes
+    const now = new Date().getTime();
+    const keyTime = new Date(storedTimestamp).getTime();
+    const minutesDiff = (now - keyTime) / (1000 * 60);
+    
+    if (minutesDiff > 5) {
+      toast({
+        title: "Key Expired",
+        description: "Authentication key has expired. Please request a new key.",
         variant: "destructive",
       });
       handleLogout();
@@ -220,26 +348,52 @@ const AdminAuth = () => {
         description: "Welcome to the admin dashboard",
       });
       
-      // Force a page refresh to load the admin panel
+      // Navigate to admin panel
       navigate('/admin');
     } else {
-      toast({
-        title: "Access denied",
-        description: "Invalid authentication key",
-        variant: "destructive",
-      });
+      // Increment failed attempts counter
+      setAuthAttempts(prev => prev + 1);
+      
+      // If too many failed attempts, force logout
+      if (authAttempts >= 3) {
+        toast({
+          title: "Access denied",
+          description: "Too many failed attempts. Please restart authentication.",
+          variant: "destructive",
+        });
+        handleLogout();
+      } else {
+        toast({
+          title: "Access denied",
+          description: "Invalid authentication key",
+          variant: "destructive",
+        });
+      }
       setIsLoading(false);
     }
   };
   
-  const handleLogout = () => {
+  const handleLogout = (reason?: string) => {
     localStorage.removeItem('auth_client_hash');
     localStorage.removeItem('auth_key_timestamp');
     localStorage.removeItem('adminAuthenticated');
     localStorage.removeItem('security_token');
+    localStorage.removeItem('auth_fingerprint');
+    
     setKeyGenerated(false);
     setSecurityToken('');
     setAuthStep(1);
+    setInputKey('');
+    setAuthAttempts(0);
+    
+    if (reason) {
+      toast({
+        title: "Logged out",
+        description: reason,
+        variant: "destructive",
+        duration: 7000,
+      });
+    }
   };
 
   return (
