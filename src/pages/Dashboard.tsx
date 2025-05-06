@@ -55,7 +55,7 @@ const Dashboard = () => {
         setRcData(rcResult);
 
       } catch (error) {
-        console.error('Error fetching data from Supabase:', error);
+        console.error('Error fetching data:', error);
         toast({
           title: "Error",
           description: "Failed to load data from the server.",
@@ -76,7 +76,6 @@ const Dashboard = () => {
         schema: 'public', 
         table: 'set_clan' 
       }, (payload) => {
-        console.log('Clans change detected:', payload);
         fetchData();
       })
       .subscribe();
@@ -88,7 +87,6 @@ const Dashboard = () => {
         schema: 'public', 
         table: 'set_id' 
       }, (payload) => {
-        console.log('ID change detected:', payload);
         if (activeTab === "id") {
           fetchData();
         }
@@ -102,7 +100,6 @@ const Dashboard = () => {
         schema: 'public', 
         table: 'set_rc' 
       }, (payload) => {
-        console.log('RC change detected:', payload);
         if (activeTab === "rc") {
           fetchData();
         }
@@ -112,7 +109,6 @@ const Dashboard = () => {
     // Set up visibility change listener to refresh data
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Page visibility changed to visible, refreshing data');
         fetchData();
       }
     };
@@ -121,7 +117,6 @@ const Dashboard = () => {
 
     // Set up focus event to refresh data
     const handleFocus = () => {
-      console.log('Page got focus, refreshing data');
       fetchData();
     };
 
@@ -129,7 +124,6 @@ const Dashboard = () => {
 
     // Setup poll interval to refresh data every 30 seconds
     const intervalId = setInterval(() => {
-      console.log('Auto-refresh interval, refreshing data');
       fetchData();
     }, 30000);
 
@@ -202,7 +196,6 @@ const Dashboard = () => {
                   data-testid="rc-buy-link"
                   className="relative z-10 inline-block bg-pink-300/20 hover:bg-pink-300/30 text-pink-300 font-bold border border-pink-300/30 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-pink-300/20 px-4 py-1.5 rounded-full text-sm mt-6"
                   onClick={(e) => {
-                    console.log('To Buy RC clicked, opening link: https://www.facebook.com/is.Moyx');
                     e.stopPropagation();
                   }}
                 >
