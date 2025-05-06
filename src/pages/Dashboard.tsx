@@ -68,6 +68,47 @@ const Dashboard = () => {
 
     fetchData();
 
+    // Setup realtime subscriptions for all tables
+    const clanChannel = supabase
+      .channel('public:set_clan')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'set_clan' 
+      }, (payload) => {
+        console.log('Clans change detected:', payload);
+        fetchData();
+      })
+      .subscribe();
+
+    const idChannel = supabase
+      .channel('public:set_id')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'set_id' 
+      }, (payload) => {
+        console.log('ID change detected:', payload);
+        if (activeTab === "id") {
+          fetchData();
+        }
+      })
+      .subscribe();
+
+    const rcChannel = supabase
+      .channel('public:set_rc')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'set_rc' 
+      }, (payload) => {
+        console.log('RC change detected:', payload);
+        if (activeTab === "rc") {
+          fetchData();
+        }
+      })
+      .subscribe();
+
     // Set up visibility change listener to refresh data
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -88,8 +129,11 @@ const Dashboard = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
+      supabase.removeChannel(clanChannel);
+      supabase.removeChannel(idChannel);
+      supabase.removeChannel(rcChannel);
     };
-  }, [toast]);
+  }, [toast, activeTab]);
 
   return (
     <>

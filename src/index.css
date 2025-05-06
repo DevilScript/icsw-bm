@@ -43,9 +43,15 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground custom-cursor;
     background-color: #171717;
     background-attachment: fixed;
+  }
+  
+  button:disabled,
+  input:disabled,
+  a.disabled {
+    @apply custom-cursor-disabled;
   }
 }
 
@@ -103,6 +109,14 @@
     content: '';
     @apply absolute inset-0 border border-pink-300/30 rounded-xl;
     animation: border-glow 2s infinite;
+  }
+  
+  .custom-cursor {
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><circle cx='6' cy='6' r='4' fill='rgba(255, 192, 213, 0.8)' /></svg>") 6 6, auto;
+  }
+  
+  .custom-cursor-disabled {
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><circle cx='6' cy='6' r='4' fill='rgba(255, 150, 150, 0.8)' /></svg>") 6 6, not-allowed;
   }
 }
 

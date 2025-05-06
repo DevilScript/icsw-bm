@@ -51,6 +51,24 @@ const IdDetails = () => {
     };
 
     loadIdData();
+
+    // Setup realtime subscription for ID table
+    const idChannel = supabase
+      .channel('public:set_id')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'set_id' 
+      }, (payload) => {
+        console.log('ID data changed:', payload);
+        loadIdData(); // Reload data when changes occur
+      })
+      .subscribe();
+
+    // Cleanup
+    return () => {
+      supabase.removeChannel(idChannel);
+    };
   }, [toast]);
 
   const isValidUrl = (url: string): boolean => {
