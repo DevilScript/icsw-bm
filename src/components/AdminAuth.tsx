@@ -1,222 +1,162 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Key, Lock, Shield, Fingerprint, Mail, Send } from 'lucide-react';
+import { Key, Lock, Shield, Fingerprint, MailCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import GlassCard from './GlassCard';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import { PuffLoader } from 'react-spinners';
-import * as CryptoJS from 'crypto-js';
+import { useAuth, generateDeviceFingerprint } from '@/contexts/AuthContext';
 
-// Auth step states
-enum AuthStep {
-  REQUEST_KEY = 1,
-  ENTER_KEY = 2,
-  TWO_FACTOR = 3
+// Types
+type AuthStep = 'key' | 'verification' | '2fa';
+
+interface SecureStorageSession {
+  token: string;
+  expiry: string;
 }
 
-interface FingerPrintData {
-  screen: string;
-  colorDepth: number;
-  timezone: string;
-  language: string;
-  userAgent: string;
-  webglFingerprint?: string;
-  plugins?: string;
-  fonts?: string;
-  canvas?: string;
-  hardware?: string;
-}
-
-const AdminAuth: React.FC = () => {
-  // State variables
-  const [authStep, setAuthStep] = useState<AuthStep>(AuthStep.REQUEST_KEY);
-  const [inputKey, setInputKey] = useState<string>('');
-  const [nonce, setNonce] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [otpCode, setOtpCode] = useState<string>('');
-  const [contactMethod, setContactMethod] = useState<string>('email');
-  const [contactValue, setContactValue] = useState<string>('phuset.zzii@gmail.com');
-  const [authAttempts, setAuthAttempts] = useState<number>(0);
-  const [keyExpiry, setKeyExpiry] = useState<Date | null>(null);
-  
-  const { toast } = useToast();
-  const navigate = useNavigate();
-
-  // Generate an enhanced fingerprint using available browser properties
-  const generateFingerprint = useCallback(async (): Promise<string> => {
+// Secure storage helper
+const secureStorage = {
+  setItem: (key: string, value: string): void => {
     try {
-      const fingerprint: FingerPrintData = {
-        screen: `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`,
-        colorDepth: window.screen.colorDepth,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        language: navigator.language,
-        userAgent: navigator.userAgent,
-      };
-
-      // Add WebGL fingerprint if available
-      try {
-        const canvas = document.createElement('canvas');
-        const gl = canvas.getContext('webgl');
-        if (gl) {
-          const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-          if (debugInfo) {
-            fingerprint.webglFingerprint = 
-              gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) + '~' +
-              gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-          }
-          
-          // Canvas fingerprinting
-          canvas.width = 220;
-          canvas.height = 30;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.textBaseline = 'alphabetic';
-            ctx.fillStyle = '#f60';
-            ctx.fillRect(125, 1, 62, 20);
-            ctx.fillStyle = '#069';
-            ctx.font = '11pt Arial';
-            ctx.fillText("GhoulRe", 2, 15);
-            ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
-            ctx.font = '18pt Arial';
-            ctx.fillText("GhoulRe", 4, 17);
-            fingerprint.canvas = canvas.toDataURL();
-          }
-        }
-      } catch (e) {
-        console.error("WebGL fingerprinting failed:", e);
+      // Try to use sessionStorage first (more secure)
+      if (window.sessionStorage) {
+        window.sessionStorage.setItem(key, value);
+        return;
       }
-
-      // Add hardware info 
-      try {
-        if (navigator.hardwareConcurrency) {
-          fingerprint.hardware = `cores:${navigator.hardwareConcurrency}`;
-        }
-      } catch (e) {}
-
-      // Create a hash of all collected data
-      const fingerprintString = JSON.stringify(fingerprint);
-      const hash = CryptoJS.SHA256(fingerprintString).toString();
       
-      return hash;
-    } catch (error) {
-      console.error("Error generating fingerprint:", error);
-      return CryptoJS.SHA256(navigator.userAgent + Date.now().toString()).toString();
+      // Fall back to encrypted localStorage
+      const encryptedValue = btoa(value); // Simple encoding, not true encryption
+      localStorage.setItem(key, encryptedValue);
+    } catch (e) {
+      console.error('Error storing data:', e);
     }
-  }, []);
-
-  // Get client IP address using an external service for demo purposes
-  const getClientIP = async (): Promise<string | null> => {
+  },
+  
+  getItem: (key: string): string | null => {
     try {
-      const response = await fetch('https://api.ipify.org?format=json');
-      const data = await response.json();
-      return data.ip;
-    } catch (error) {
-      console.error("Could not get IP address:", error);
+      // Try sessionStorage first
+      if (window.sessionStorage) {
+        return window.sessionStorage.getItem(key);
+      }
+      
+      // Fall back to encrypted localStorage
+      const value = localStorage.getItem(key);
+      if (!value) return null;
+      
+      return atob(value); // Simple decoding
+    } catch (e) {
+      console.error('Error retrieving data:', e);
       return null;
     }
-  };
-
-  // Check if user is already authenticated on component mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // Get session token from sessionStorage (more secure than localStorage)
-        const sessionToken = sessionStorage.getItem('admin_session');
-        
-        if (!sessionToken) return;
-        
-        // Get device fingerprint
-        const deviceFingerprint = await generateFingerprint();
-        
-        // Validate session with backend
-        const response = await supabase.functions.invoke('admin-auth', {
-          body: {
-            action: 'validateSession',
-            data: { sessionToken, deviceFingerprint }
-          }
-        });
-        
-        if (response.data.success) {
-          navigate('/admin');
-        } else {
-          // Clear invalid session
-          sessionStorage.removeItem('admin_session');
-        }
-      } catch (error) {
-        console.error("Auth check error:", error);
-        sessionStorage.removeItem('admin_session');
-      }
-    };
-    
-    checkAuth();
-  }, [generateFingerprint, navigate]);
-
-  // Request authentication key
-  const handleGetKey = async () => {
+  },
+  
+  removeItem: (key: string): void => {
     try {
-      setIsLoading(true);
-      setAuthAttempts(prev => prev + 1);
+      // Remove from both storages to be sure
+      if (window.sessionStorage) {
+        window.sessionStorage.removeItem(key);
+      }
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.error('Error removing data:', e);
+    }
+  }
+};
 
-      // Generate device fingerprint
-      const deviceFingerprint = await generateFingerprint();
-      const ipAddress = await getClientIP();
-
-      // Request key from backend
-      const response = await supabase.functions.invoke('admin-auth', {
-        body: {
-          action: 'generateKey',
-          data: { deviceFingerprint, ipAddress }
-        }
+const AdminAuth = () => {
+  // State
+  const [authStep, setAuthStep] = useState<AuthStep>('key');
+  const [inputKey, setInputKey] = useState<string>('');
+  const [twoFactorCode, setTwoFactorCode] = useState<string>('');
+  const [nonce, setNonce] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [authAttempts, setAuthAttempts] = useState<number>(0);
+  const [contactMethod, setContactMethod] = useState<string>('');
+  const [contactValue, setContactValue] = useState<string>('');
+  
+  // Hooks
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const { isAuthenticated, authenticate } = useAuth();
+  
+  // API base URL
+  const API_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL || 'https://tnwgtlyuabpmxsqiyjof.supabase.co'}/functions/v1/admin-auth`;
+  const API_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRud2d0bHl1YWJwbXhzcWl5am9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0NjE5NjgsImV4cCI6MjA2MjAzNzk2OH0.4YzXbSFRNp_qqPH_3pTltCJue7Mwsgh5GRHI0ZIjZ64';
+  
+  // Check if admin is authenticated on mount
+  useEffect(() => {
+    // If already authenticated, redirect to admin page
+    if (isAuthenticated === true) {
+      navigate('/admin');
+    }
+    
+    // Clean up old localStorage (migration)
+    localStorage.removeItem('adminAuthenticated');
+    localStorage.removeItem('auth_client_hash');
+    localStorage.removeItem('auth_key_timestamp');
+    localStorage.removeItem('security_token');
+    localStorage.removeItem('auth_fingerprint');
+    localStorage.removeItem('usedKeys');
+  }, [isAuthenticated, navigate]);
+  
+  // CSP setup (Content Security Policy)
+  useEffect(() => {
+    // This would ideally be in meta tags and server headers
+    // For demo purposes, we'll just add a meta tag dynamically
+    const metaCSP = document.createElement('meta');
+    metaCSP.httpEquiv = 'Content-Security-Policy';
+    metaCSP.content = "default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline'; connect-src *;";
+    document.head.appendChild(metaCSP);
+    
+    return () => {
+      document.head.removeChild(metaCSP);
+    };
+  }, []);
+  
+  // Handle key request
+  const handleGetKey = async () => {
+    setIsLoading(true);
+    
+    try {
+      const deviceFingerprint = generateDeviceFingerprint();
+      
+      const response = await fetch(`${API_BASE_URL}/request-key`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${API_KEY}`
+        },
+        body: JSON.stringify({
+          deviceFingerprint
+        })
       });
       
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to generate authentication key');
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to get authentication key');
       }
       
-      // Store nonce for verification
-      setNonce(response.data.data.nonce);
+      // Store the key, nonce, and timestamp temporarily (they won't be visible in UI)
+      setInputKey(data.key);
+      setNonce(data.nonce);
       
-      // Set key expiry
-      if (response.data.data.expires) {
-        setKeyExpiry(new Date(response.data.data.expires));
-      }
-      
-      // Move to next auth step
-      setAuthStep(AuthStep.ENTER_KEY);
-      
-      // Start expiry timer
-      if (response.data.data.expires) {
-        const expiryTime = new Date(response.data.data.expires).getTime() - Date.now();
-        if (expiryTime > 0) {
-          setTimeout(() => {
-            if (authStep === AuthStep.ENTER_KEY) {
-              toast({
-                title: "Key expired",
-                description: "Your authentication key has expired. Please request a new one.",
-                variant: "destructive",
-                duration: 5000,
-              });
-              setAuthStep(AuthStep.REQUEST_KEY);
-            }
-          }, expiryTime);
-        }
-      }
+      // CSRF token generation (for added security)
+      const csrfToken = generateCSRFToken();
+      secureStorage.setItem('csrf_token', csrfToken);
       
       toast({
-        title: "Key requested",
-        description: "Authentication key has been sent to Discord. Please check Discord and enter the key.",
+        title: "รหัสยืนยันตัวตนถูกสร้างแล้ว",
+        description: "รหัสถูกส่งไปยังผู้ดูแลระบบเพื่อตรวจสอบ กรุณารอรับรหัสจากผู้ดูแลระบบ",
         duration: 7000,
       });
-    } catch (error) {
-      console.error("Error generating key:", error);
       
+      setAuthStep('verification');
+    } catch (error: any) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to request authentication key",
+        title: "เกิดข้อผิดพลาด",
+        description: error.message || "ไม่สามารถสร้างรหัสยืนยันตัวตนได้ โปรดลองอีกครั้ง",
         variant: "destructive",
         duration: 7000,
       });
@@ -224,384 +164,321 @@ const AdminAuth: React.FC = () => {
       setIsLoading(false);
     }
   };
-
-  // Verify the entered key
-  const handleKeySubmit = async (e: React.FormEvent) => {
+  
+  // Handle verification submit
+  const handleVerificationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!inputKey || !nonce) {
-      toast({
-        title: "Error",
-        description: "Authentication key is required",
-        variant: "destructive",
-        duration: 5000,
-      });
-      return;
-    }
+    setIsLoading(true);
     
     try {
-      setIsLoading(true);
+      const deviceFingerprint = generateDeviceFingerprint();
+      const csrfToken = secureStorage.getItem('csrf_token');
       
-      // Generate device fingerprint
-      const deviceFingerprint = await generateFingerprint();
-      const ipAddress = await getClientIP();
-      
-      // Verify key with backend
-      const response = await supabase.functions.invoke('admin-auth', {
-        body: {
-          action: 'verifyKey',
-          data: { 
-            key: inputKey,
-            nonce,
-            deviceFingerprint,
-            ipAddress
-          }
-        }
-      });
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Authentication failed');
+      if (!csrfToken) {
+        throw new Error('CSRF token missing. Please restart the authentication process.');
       }
       
-      // Store session token in sessionStorage (more secure than localStorage)
-      sessionStorage.setItem('admin_session', response.data.data.sessionToken);
-      
-      // Proceed to 2FA
-      setAuthStep(AuthStep.TWO_FACTOR);
-      
-      // Initiate 2FA authentication
-      await send2FACode();
-      
-    } catch (error) {
-      console.error("Key verification error:", error);
-      
-      toast({
-        title: "Authentication failed",
-        description: error instanceof Error ? error.message : "Invalid authentication key",
-        variant: "destructive",
-        duration: 5000,
+      const response = await fetch(`${API_BASE_URL}/verify-key`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${API_KEY}`,
+          'X-CSRF-TOKEN': csrfToken
+        },
+        body: JSON.stringify({
+          key: inputKey,
+          nonce: nonce,
+          deviceFingerprint
+        })
       });
       
-      // Handle too many failed attempts
-      if (authAttempts >= 3) {
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Key verification failed');
+      }
+      
+      // Store contact method for 2FA
+      setContactMethod(data.contactMethod);
+      setContactValue(data.contactValue);
+      
+      toast({
+        title: "ยืนยันรหัสสำเร็จ",
+        description: `รหัสยืนยัน 2 ขั้นตอนได้ถูกส่งไปยัง ${data.contactMethod}: ${data.contactValue}`,
+        duration: 7000,
+      });
+      
+      // For development: auto-fill the 2FA code
+      if (import.meta.env.DEV && data.code) {
+        setTwoFactorCode(data.code);
+      }
+      
+      setAuthStep('2fa');
+    } catch (error: any) {
+      // Increment failed attempts counter
+      setAuthAttempts(prev => prev + 1);
+      
+      // If too many failed attempts, reset
+      if (authAttempts >= 2) {
+        handleReset('Too many failed attempts');
+      } else {
         toast({
-          title: "Too many attempts",
-          description: "Too many failed attempts. Please try again later.",
+          title: "การยืนยันรหัสล้มเหลว",
+          description: error.message || "รหัสไม่ถูกต้องหรือหมดอายุ",
           variant: "destructive",
           duration: 7000,
         });
-        setAuthStep(AuthStep.REQUEST_KEY);
-        setAuthAttempts(0);
       }
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Send 2FA code to email or phone number
-  const send2FACode = async () => {
-    try {
-      setIsLoading(true);
-      
-      const response = await supabase.functions.invoke('admin-auth', {
-        body: {
-          action: 'send2FACode',
-          data: { 
-            contactMethod,
-            contactValue: contactMethod === 'email' ? 'phuset.zzii@gmail.com' : '0653835988'
-          }
-        }
-      });
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to send verification code');
-      }
-      
-      toast({
-        title: "Verification code sent",
-        description: `A verification code has been sent to your ${contactMethod}`,
-        duration: 5000,
-      });
-    } catch (error) {
-      console.error("2FA code sending error:", error);
-      
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send verification code",
-        variant: "destructive",
-        duration: 5000,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Verify 2FA code
-  const handleOTPSubmit = async (e: React.FormEvent) => {
+  
+  // Handle 2FA submit
+  const handle2FASubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!otpCode || otpCode.length !== 6) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid 6-digit verification code",
-        variant: "destructive",
-        duration: 5000,
-      });
-      return;
-    }
+    setIsLoading(true);
     
     try {
-      setIsLoading(true);
+      const deviceFingerprint = generateDeviceFingerprint();
+      const csrfToken = secureStorage.getItem('csrf_token');
       
-      const response = await supabase.functions.invoke('admin-auth', {
-        body: {
-          action: 'verify2FACode',
-          data: { 
-            contactMethod,
-            contactValue: contactMethod === 'email' ? 'phuset.zzii@gmail.com' : '0653835988',
-            authCode: otpCode
-          }
-        }
-      });
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || '2FA verification failed');
+      if (!csrfToken) {
+        throw new Error('CSRF token missing. Please restart the authentication process.');
       }
       
+      const response = await fetch(`${API_BASE_URL}/verify-2fa`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${API_KEY}`,
+          'X-CSRF-TOKEN': csrfToken
+        },
+        body: JSON.stringify({
+          code: twoFactorCode,
+          deviceFingerprint,
+          contactMethod,
+          contactValue
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Two-factor authentication failed');
+      }
+      
+      // Store session token securely
+      const session: SecureStorageSession = {
+        token: data.sessionToken,
+        expiry: new Date(Date.now() + data.expiresIn * 1000).toISOString()
+      };
+      
+      secureStorage.setItem('admin_session', JSON.stringify(session));
+      
+      // Update auth context
+      authenticate();
+      
       toast({
-        title: "Authentication successful",
-        description: "Welcome to the admin dashboard",
+        title: "การยืนยันตัวตนสำเร็จ",
+        description: "ยินดีต้อนรับเข้าสู่หน้าจัดการระบบ",
         duration: 5000,
       });
       
-      // Navigate to admin panel
+      // Clean up CSRF token
+      secureStorage.removeItem('csrf_token');
+      
+      // Navigate to admin page
       navigate('/admin');
-    } catch (error) {
-      console.error("2FA verification error:", error);
+    } catch (error: any) {
+      // Increment failed attempts counter
+      setAuthAttempts(prev => prev + 1);
       
-      toast({
-        title: "Verification failed",
-        description: error instanceof Error ? error.message : "Invalid verification code",
-        variant: "destructive",
-        duration: 5000,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle logout (clear session)
-  const handleLogout = async () => {
-    try {
-      const sessionToken = sessionStorage.getItem('admin_session');
-      
-      if (sessionToken) {
-        await supabase.functions.invoke('admin-auth', {
-          body: {
-            action: 'logout',
-            data: { sessionToken }
-          }
+      // If too many failed attempts, reset
+      if (authAttempts >= 2) {
+        handleReset('Too many failed attempts');
+      } else {
+        toast({
+          title: "การยืนยัน 2 ขั้นตอนล้มเหลว",
+          description: error.message || "รหัสไม่ถูกต้องหรือหมดอายุ",
+          variant: "destructive",
+          duration: 7000,
         });
       }
-    } catch (error) {
-      console.error("Logout error:", error);
     } finally {
-      sessionStorage.removeItem('admin_session');
-      setAuthStep(AuthStep.REQUEST_KEY);
-      setNonce('');
-      setInputKey('');
-      setOtpCode('');
+      setIsLoading(false);
     }
   };
-
-  // Toggle contact method (email/phone)
-  const toggleContactMethod = () => {
-    setContactMethod(prev => prev === 'email' ? 'phone' : 'email');
-    setContactValue(contactMethod === 'email' ? '0653835988' : 'phuset.zzii@gmail.com');
+  
+  // Reset authentication process
+  const handleReset = (reason?: string) => {
+    setAuthStep('key');
+    setInputKey('');
+    setNonce('');
+    setTwoFactorCode('');
+    setAuthAttempts(0);
+    secureStorage.removeItem('csrf_token');
+    
+    if (reason) {
+      toast({
+        title: "การยืนยันตัวตนถูกรีเซ็ต",
+        description: reason,
+        variant: "destructive",
+        duration: 7000,
+      });
+    }
   };
-
-  // Format remaining time for key expiry
-  const formatRemainingTime = () => {
-    if (!keyExpiry) return '';
-    
-    const now = new Date();
-    const diff = keyExpiry.getTime() - now.getTime();
-    
-    if (diff <= 0) return 'Expired';
-    
-    const minutes = Math.floor(diff / 60000);
-    const seconds = Math.floor((diff % 60000) / 1000);
-    
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  
+  // Generate a CSRF token
+  const generateCSRFToken = (): string => {
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => ('0' + byte.toString(16)).slice(-2)).join('');
   };
-
-  // Render content based on current auth step
-  const renderAuthContent = () => {
-    switch (authStep) {
-      case AuthStep.REQUEST_KEY:
-        return (
-          <>
-            <div className="flex flex-col items-center mb-6">
-              <div className="h-16 w-16 rounded-full bg-pink-300/20 backdrop-blur-sm flex items-center justify-center mb-4 animate-pulse-glow border border-pink-300/30">
-                <Key size={28} className="text-pink-300" />
-              </div>
-              <h2 className="text-2xl font-bold text-white">Admin Authentication</h2>
-              <p className="text-glass-light text-sm mt-2">Request an authentication key to continue</p>
-            </div>
-            
-            <Button 
-              type="button"
-              onClick={handleGetKey}
-              className="w-full button-3d flex items-center justify-center gap-2"
+  
+  return (
+    <div className="flex items-center justify-center min-h-screen px-4 py-8 custom-cursor">
+      <GlassCard className="max-w-md w-full animate-float relative z-10">
+        <div className="flex flex-col items-center mb-6">
+          <div className="h-16 w-16 rounded-full bg-pink-300/20 backdrop-blur-sm flex items-center justify-center mb-4 animate-pulse-glow border border-pink-300/30">
+            {authStep === 'key' && (
+              <Key size={28} className="text-pink-300" />
+            )}
+            {authStep === 'verification' && (
+              <Fingerprint size={28} className="text-pink-300" />
+            )}
+            {authStep === '2fa' && (
+              <MailCheck size={28} className="text-pink-300" />
+            )}
+          </div>
+          <h2 className="text-2xl font-bold text-white">Admin Authentication</h2>
+          
+          {authStep === 'key' && (
+            <p className="text-glass-light text-sm mt-2 text-center">
+              ส่งคำขอการยืนยันตัวตนไปยังผู้ดูแลระบบ
+            </p>
+          )}
+          
+          {authStep === 'verification' && (
+            <p className="text-glass-light text-sm mt-2 text-center">
+              ป้อนรหัสยืนยันตัวตนที่ได้รับจากผู้ดูแลระบบ
+            </p>
+          )}
+          
+          {authStep === '2fa' && (
+            <p className="text-glass-light text-sm mt-2 text-center">
+              ป้อนรหัสยืนยัน 2 ขั้นตอนที่ส่งไปยัง {contactValue}
+            </p>
+          )}
+        </div>
+        
+        {/* Step 1: Request Key */}
+        {authStep === 'key' && (
+          <Button 
+            type="button"
+            onClick={handleGetKey}
+            className="w-full button-3d flex items-center justify-center gap-2"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
+            ) : (
+              <>
+                <Lock size={16} />
+                ขอรหัสยืนยันตัวตน
+              </>
+            )}
+          </Button>
+        )}
+        
+        {/* Step 2: Verify Key */}
+        {authStep === 'verification' && (
+          <form onSubmit={handleVerificationSubmit} className="space-y-4">
+            <Input
+              type="password"
+              placeholder="ป้อนรหัสยืนยันตัวตน"
+              className="glass-input border-pink-300/30 focus:border-pink-400/50 text-center custom-cursor"
+              value={inputKey}
+              onChange={(e) => setInputKey(e.target.value)}
+              required
               disabled={isLoading}
-            >
-              {isLoading ? (
-                <PuffLoader size={20} color="#ffffff" />
-              ) : (
-                <>
-                  <Lock size={16} />
-                  Request Authentication Key
-                </>
-              )}
-            </Button>
-          </>
-        );
-      
-      case AuthStep.ENTER_KEY:
-        return (
-          <>
-            <div className="flex flex-col items-center mb-6">
-              <div className="h-16 w-16 rounded-full bg-pink-300/20 backdrop-blur-sm flex items-center justify-center mb-4 animate-pulse-glow border border-pink-300/30">
-                <Shield size={28} className="text-pink-300" />
-              </div>
-              <h2 className="text-2xl font-bold text-white">Admin Authentication</h2>
-              <p className="text-glass-light text-sm mt-2">Enter the authentication key sent to Discord</p>
-              {keyExpiry && (
-                <p className="text-pink-300 text-xs mt-1">Key expires in: {formatRemainingTime()}</p>
-              )}
-            </div>
+              autoComplete="off" // Prevent browser from storing
+              autoCorrect="off"
+              spellCheck="false"
+            />
             
-            <form onSubmit={handleKeySubmit} className="space-y-4">
-              <Input
-                type="password"
-                placeholder="Enter Key"
-                className="glass-input border-pink-300/30 focus:border-pink-400/50 text-center custom-cursor"
-                value={inputKey}
-                onChange={(e) => setInputKey(e.target.value)}
-                required
+            <div className="flex space-x-2">
+              <Button 
+                type="button"
+                className="w-1/3 bg-glass-dark/40 text-pink-300 hover:bg-glass-dark/60 hover:text-pink-300 border border-pink-300/30 shadow-md transition-all duration-200"
+                onClick={() => handleReset()}
                 disabled={isLoading}
-              />
+              >
+                ย้อนกลับ
+              </Button>
               
               <Button 
                 type="submit" 
-                className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-lg shadow-pink-400/20 transition-all duration-300 flex items-center justify-center gap-2"
-                disabled={isLoading}
+                className="w-2/3 bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-lg shadow-pink-400/20 transition-all duration-300 flex items-center justify-center gap-2"
+                disabled={!inputKey || isLoading}
               >
                 {isLoading ? (
-                  <PuffLoader size={20} color="#ffffff" />
+                  <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
                 ) : (
                   <>
                     <Shield size={16} />
-                    Verify Authentication
+                    ยืนยันรหัส
                   </>
                 )}
               </Button>
-              
+            </div>
+          </form>
+        )}
+        
+        {/* Step 3: Two-Factor Authentication */}
+        {authStep === '2fa' && (
+          <form onSubmit={handle2FASubmit} className="space-y-4">
+            <Input
+              type="text"
+              placeholder="ป้อนรหัส 2FA"
+              className="glass-input border-pink-300/30 focus:border-pink-400/50 text-center custom-cursor"
+              value={twoFactorCode}
+              onChange={(e) => setTwoFactorCode(e.target.value)}
+              required
+              disabled={isLoading}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck="false"
+              maxLength={6}
+            />
+            
+            <div className="flex space-x-2">
               <Button 
                 type="button"
-                variant="ghost" 
-                className="w-full mt-2 text-glass-light hover:text-white hover:bg-transparent"
-                onClick={() => setAuthStep(AuthStep.REQUEST_KEY)}
+                className="w-1/3 bg-glass-dark/40 text-pink-300 hover:bg-glass-dark/60 hover:text-pink-300 border border-pink-300/30 shadow-md transition-all duration-200"
+                onClick={() => handleReset()}
                 disabled={isLoading}
               >
-                Back
+                ย้อนกลับ
               </Button>
-            </form>
-          </>
-        );
-      
-      case AuthStep.TWO_FACTOR:
-        return (
-          <>
-            <div className="flex flex-col items-center mb-6">
-              <div className="h-16 w-16 rounded-full bg-pink-300/20 backdrop-blur-sm flex items-center justify-center mb-4 animate-pulse-glow border border-pink-300/30">
-                <Fingerprint size={28} className="text-pink-300" />
-              </div>
-              <h2 className="text-2xl font-bold text-white">Two-Factor Authentication</h2>
-              <p className="text-glass-light text-sm mt-2">
-                Enter the verification code sent to your {contactMethod}
-              </p>
-              <Button
-                variant="link"
-                className="text-pink-300 text-xs p-0 mt-1 h-auto"
-                onClick={toggleContactMethod}
-              >
-                Use {contactMethod === 'email' ? 'phone' : 'email'} instead
-              </Button>
-            </div>
-            
-            <form onSubmit={handleOTPSubmit} className="space-y-6">
-              <div className="flex flex-col items-center space-y-4">
-                <InputOTP maxLength={6} value={otpCode} onChange={setOtpCode}>
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} className="border-pink-300/30 focus:border-pink-400/80 text-white" />
-                    <InputOTPSlot index={1} className="border-pink-300/30 focus:border-pink-400/80 text-white" />
-                    <InputOTPSlot index={2} className="border-pink-300/30 focus:border-pink-400/80 text-white" />
-                    <InputOTPSlot index={3} className="border-pink-300/30 focus:border-pink-400/80 text-white" />
-                    <InputOTPSlot index={4} className="border-pink-300/30 focus:border-pink-400/80 text-white" />
-                    <InputOTPSlot index={5} className="border-pink-300/30 focus:border-pink-400/80 text-white" />
-                  </InputOTPGroup>
-                </InputOTP>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-pink-300/30 text-pink-300 hover:bg-pink-300/10"
-                  onClick={send2FACode}
-                  disabled={isLoading}
-                >
-                  <Mail size={16} className="mr-2" />
-                  Resend code
-                </Button>
-              </div>
               
               <Button 
                 type="submit" 
-                className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-lg shadow-pink-400/20 transition-all duration-300 flex items-center justify-center gap-2"
-                disabled={isLoading || otpCode.length !== 6}
+                className="w-2/3 bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-lg shadow-pink-400/20 transition-all duration-300 flex items-center justify-center gap-2"
+                disabled={!twoFactorCode || isLoading}
               >
                 {isLoading ? (
-                  <PuffLoader size={20} color="#ffffff" />
+                  <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
                 ) : (
                   <>
-                    <Send size={16} />
-                    Verify Code
+                    <Shield size={16} />
+                    ยืนยันตัวตน
                   </>
                 )}
               </Button>
-              
-              <Button 
-                type="button"
-                variant="ghost" 
-                className="w-full mt-2 text-glass-light hover:text-white hover:bg-transparent"
-                onClick={handleLogout}
-                disabled={isLoading}
-              >
-                Start Over
-              </Button>
-            </form>
-          </>
-        );
-      
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div className="flex items-center justify-center min-h-screen px-4 py-8 custom-cursor">
-      <GlassCard className="max-w-md w-full animate-float">
-        {renderAuthContent()}
+            </div>
+          </form>
+        )}
       </GlassCard>
     </div>
   );

@@ -1,89 +1,62 @@
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import AdminAuth from "./components/AdminAuth";
 import NotFound from "./pages/NotFound";
 import Navbar from "./components/Navbar";
 import Contributors from '@/pages/Contributors';
-import LoadingScreen from "./components/LoadingScreen";
+import { AuthProvider } from './contexts/AuthContext';
+import LoadingScreen from './components/LoadingScreen';
 
-// Create a QueryClient instance outside the component
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
+      refetchOnWindowFocus: false, // Improve performance by preventing refetch on window focus
+      staleTime: 5 * 60 * 1000, // 5 minutes of cache freshness
+      retry: 1, // Only retry once on failure
     },
   },
 });
 
-// Define the App component as a function component
 const App = () => {
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [appReady, setAppReady] = useState<boolean>(false);
-
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
   useEffect(() => {
-    const loadApp = async () => {
-      try {
-        // Add a minimum loading time for better UX
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Mark app as loaded
-        setIsLoading(false);
-        
-        // Small delay before showing content for smooth transition
-        setTimeout(() => setAppReady(true), 500);
-      } catch (error) {
-        console.error("Error during app initialization:", error);
-        setIsLoading(false);
-        setAppReady(true);
-      }
-    };
+    // After an appropriate amount of time, mark the initial load as complete
+    const timer = setTimeout(() => {
+      setIsInitialLoad(false);
+    }, 2000);
     
-    loadApp();
+    return () => clearTimeout(timer);
   }, []);
-
+  
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        
-        {/* Loading screen */}
-        {isLoading && <LoadingScreen onLoadComplete={() => setIsLoading(false)} />}
-        
-        {/* Main app content */}
-        <AnimatePresence>
-          {appReady && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5 }}
-              className="min-h-screen bg-glass-dark"
-            >
-              <BrowserRouter>
-                <Navbar />
-                <div className="pt-16"> {/* Add padding for fixed navbar */}
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/contributors" element={<Contributors />} />
-                    <Route path="/admin" element={<Admin />} />
-                    <Route path="/admin-auth" element={<AdminAuth />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </div>
-              </BrowserRouter>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          {isInitialLoad && <LoadingScreen />}
+          <BrowserRouter>
+            <Navbar />
+            <div className="pt-16"> {/* Add padding for fixed navbar */}
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/contributors" element={<Contributors />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/admin-auth" element={<AdminAuth />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </div>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 };
