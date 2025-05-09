@@ -35,7 +35,7 @@ export const generateDeviceFingerprint = (): string => {
     try {
       const canvas = document.createElement('canvas');
       // Explicitly cast to WebGLRenderingContext to access WebGL methods
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
+      const gl = canvas.getContext('webgl') as WebGLRenderingContext | null;
       if (gl) {
         const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
         if (debugInfo) {

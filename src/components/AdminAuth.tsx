@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -332,7 +333,8 @@ const AdminAuth = () => {
   // Generate a CSRF token
   const generateCSRFToken = (): string => {
     const array = new Uint8Array(16);
-    crypto.getRandomValues(array);
+    // Use window.crypto for Web Crypto API
+    window.crypto.getRandomValues(array);
     return Array.from(array, byte => ('0' + byte.toString(16)).slice(-2)).join('');
   };
   
