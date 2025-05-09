@@ -1,114 +1,86 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { encode as base64Encode } from "https://deno.land/std@0.177.0/encoding/base64.ts";
-import * as crypto from "https://deno.land/std@0.177.0/crypto/mod.ts";
 
-// Constants
-const EXPIRY_TIME_MINUTES = 5;
-const SESSION_EXPIRY_HOURS = 24;
-const MAX_AUTH_ATTEMPTS = 3;
-const DISCORD_WEBHOOK_URL = Deno.env.get("DISCORD_WEBHOOK_URL");
-
-// CORS headers
+// CORS headers for browser access
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS, GET, DELETE",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Utility functions for encryption
-async function generateEncryptionKey(): Promise<CryptoKey> {
-  return await crypto.subtle.generateKey(
-    { name: "AES-GCM", length: 256 },
-    true,
-    ["encrypt", "decrypt"]
+// Create a Supabase client
+const supabaseUrl = Deno.env.get("SUPABASE_URL") || "https://tnwgtlyuabpmxsqiyjof.supabase.co";
+const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const discordWebhook = Deno.env.get("DISCORD_WEBHOOK_URL") || "https://discord.com/api/webhooks/1368789991685095456/sr3yEJHbeHM6Tfz58OgjOclrlWo3nHN_pi_2fXqjHg-7ldR0wbo1JIptphWbzCeCQdDK";
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Secret key for encryption/decryption
+const SECRET_KEY = Deno.env.get("ADMIN_ENCRYPTION_KEY") || "ghoulre2025SecureKeyDoNotShare";
+
+// Simple encryption function (replacing oak_crypto)
+async function encrypt(text: string, secretKey: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const keyData = encoder.encode(secretKey);
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
   );
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    cryptoKey,
+    data
+  );
+  const signatureArray = Array.from(new Uint8Array(signature));
+  const signatureHex = signatureArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  // Base64 encode the original text
+  const base64 = btoa(text);
+  
+  // Return both for verification
+  return base64 + '.' + signatureHex;
 }
 
-async function encryptData(data: string, key: CryptoKey): Promise<string> {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const dataBytes = new TextEncoder().encode(data);
-  
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    dataBytes
-  );
-  
-  const result = new Uint8Array(iv.length + ciphertext.byteLength);
-  result.set(iv, 0);
-  result.set(new Uint8Array(ciphertext), iv.length);
-  
-  return base64Encode(result);
+// Simple decryption function (replacing oak_crypto)
+async function decrypt(encrypted: string, secretKey: string): Promise<string | null> {
+  try {
+    const parts = encrypted.split('.');
+    if (parts.length !== 2) return null;
+    
+    const base64Text = parts[0];
+    const providedSignature = parts[1];
+    
+    // Decode the base64 text
+    const text = atob(base64Text);
+    
+    // Verify signature
+    const computed = await encrypt(text, secretKey);
+    const computedSignature = computed.split('.')[1];
+    
+    if (providedSignature !== computedSignature) {
+      return null; // Signature verification failed
+    }
+    
+    return text;
+  } catch (e) {
+    console.error("Decryption error:", e);
+    return null;
+  }
 }
 
-async function generateAuthKey(): Promise<string> {
+// Generate a random key
+function generateRandomKey(): string {
   const array = new Uint8Array(16);
   crypto.getRandomValues(array);
   return Array.from(array, byte => ('0' + byte.toString(16)).slice(-2)).join('');
 }
 
-async function generateSecureToken(): Promise<string> {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return base64Encode(array);
-}
-
-async function generateNonce(): Promise<string> {
-  const array = new Uint8Array(16);
-  crypto.getRandomValues(array);
-  return base64Encode(array);
-}
-
-async function sendWebhookNotification(key: string, securityInfo: any): Promise<boolean> {
-  if (!DISCORD_WEBHOOK_URL) {
-    console.error("Discord webhook URL not configured");
-    return false;
-  }
-
-  try {
-    const encryptionKey = await generateEncryptionKey();
-    const encryptedKey = await encryptData(key, encryptionKey);
-    
-    const response = await fetch(DISCORD_WEBHOOK_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        content: `New Admin Authentication Request\nKey: ${encryptedKey}\n\n\nVerification Data: ${JSON.stringify(securityInfo)}\nTimestamp: ${new Date().toLocaleString()}`,
-      }),
-    });
-
-    return response.ok;
-  } catch (error) {
-    console.error("Error sending webhook notification:", error);
-    return false;
-  }
-}
-
-async function storeAuthKey(supabase: any, key: string, deviceFingerprint: string, ipAddress: string, expiresAt: Date): Promise<string> {
-  const nonce = await generateNonce();
-  const keyHash = await hashString(key);
-  
-  const { error } = await supabase
-    .from('admin_auth')
-    .insert([{
-      key_hash: keyHash,
-      auth_key: key,
-      device_fingerprint: deviceFingerprint,
-      ip_address: ipAddress,
-      nonce: nonce,
-      expires_at: expiresAt.toISOString(),
-    }]);
-    
-  if (error) {
-    throw new Error(`Failed to store auth key: ${error.message}`);
-  }
-  
-  return nonce;
-}
-
+// Hash a string using SHA-256
 async function hashString(str: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(str);
@@ -117,325 +89,404 @@ async function hashString(str: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function createAdminSession(supabase: any, deviceFingerprint: string, ipAddress: string, userAgent: string): Promise<string> {
-  const sessionToken = await generateSecureToken();
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + SESSION_EXPIRY_HOURS);
-  
-  const { error } = await supabase
-    .from('admin_sessions')
-    .insert([{
-      device_fingerprint: deviceFingerprint,
-      session_token: sessionToken,
-      ip_address: ipAddress,
-      user_agent: userAgent,
-      expires_at: expiresAt.toISOString(),
-    }]);
-    
-  if (error) {
-    throw new Error(`Failed to create admin session: ${error.message}`);
-  }
-  
-  return sessionToken;
+// Generate a nonce
+function generateNonce(): string {
+  return crypto.randomUUID();
 }
 
-async function sendTwoFactorCode(supabase: any, contactMethod: string, contactValue: string): Promise<string> {
-  // Generate a 6-digit code
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = new Date();
-  expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minutes expiry
-  
-  // Store the code in the database
-  const { error } = await supabase
-    .from('two_factor_auth')
-    .insert([{
-      auth_code: code,
-      contact_method: contactMethod,
-      contact_value: contactValue,
-      expires_at: expiresAt.toISOString(),
-    }]);
-    
-  if (error) {
-    throw new Error(`Failed to store 2FA code: ${error.message}`);
-  }
-  
-  // For email notification, we'd typically use a service like SendGrid or similar
-  // For SMS, we'd use a service like Twilio
-  // For this implementation, we'll return the code for development purposes
-  // In production, you'd want to integrate with an actual email/SMS service
-  
-  return code;
-}
-
-async function verifyTwoFactorCode(supabase: any, code: string, contactMethod: string, contactValue: string): Promise<boolean> {
-  // Get the most recent non-verified code for this contact
-  const { data, error } = await supabase
-    .from('two_factor_auth')
-    .select('*')
-    .eq('auth_code', code)
-    .eq('contact_method', contactMethod)
-    .eq('contact_value', contactValue)
-    .eq('verified', false)
-    .gt('expires_at', new Date().toISOString())
-    .order('created_at', { ascending: false })
-    .limit(1);
-    
-  if (error || !data || data.length === 0) {
-    return false;
-  }
-  
-  // Mark the code as verified
-  const { error: updateError } = await supabase
-    .from('two_factor_auth')
-    .update({ verified: true })
-    .eq('id', data[0].id);
-    
-  if (updateError) {
-    console.error("Error updating 2FA code:", updateError);
-    return false;
-  }
-  
-  return true;
-}
-
-// Main handler
-serve(async (req) => {
-  // Handle CORS preflight request
+serve(async (req: Request) => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders,
-    });
+    return new Response(null, { headers: corsHeaders });
   }
-  
-  // Create Supabase client
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  const supabase = createClient(supabaseUrl, supabaseKey);
-  
-  // Extract client IP and user agent
-  const ipAddress = req.headers.get("x-forwarded-for") || "unknown";
-  const userAgent = req.headers.get("user-agent") || "unknown";
-  
-  const url = new URL(req.url);
-  const path = url.pathname.split("/").pop();
-  
+
   try {
-    // Request authentication key
-    if (path === "request-key" && req.method === "POST") {
-      const { deviceFingerprint } = await req.json();
+    const { action, data } = await req.json();
+
+    // 1. Generate Authentication Key
+    if (action === "generateKey") {
+      const { deviceFingerprint, ipAddress } = data;
       
-      // Generate a secure key
-      const key = await generateAuthKey();
+      // Generate a new auth key
+      const newKey = generateRandomKey();
+      const keyHash = await hashString(newKey);
+      const nonce = generateNonce();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
       
-      // Set expiry time
-      const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + EXPIRY_TIME_MINUTES);
-      
-      // Store the key in the database
-      const nonce = await storeAuthKey(supabase, key, deviceFingerprint, ipAddress, expiresAt);
-      
-      // Generate timestamp for security purposes
-      const timestamp = new Date().toISOString();
-      
-      // Send notification via webhook
-      const securityInfo = {
-        timestamp,
-        ipAddress,
-        userAgent: userAgent.substring(0, 100),
-        nonce,
-        expiresAt: expiresAt.toISOString()
-      };
-      
-      await sendWebhookNotification(key, securityInfo);
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          key,
-          nonce,
-          timestamp,
-          expiresAt: expiresAt.toISOString()
-        }),
+      // Store in database
+      const { error } = await supabase.from("admin_auth").insert([
         {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
+          auth_key: newKey,
+          key_hash: keyHash,
+          nonce,
+          expires_at: expiresAt.toISOString(),
+          device_fingerprint: deviceFingerprint,
+          ip_address: ipAddress
         }
-      );
+      ]);
+      
+      if (error) throw new Error(error.message);
+
+      // Encrypt key for safe transmission
+      const encryptedKey = await encrypt(newKey, SECRET_KEY);
+      
+      // Send to Discord webhook
+      try {
+        const securityMetadata = {
+          timestamp: new Date().toISOString(),
+          fingerprint: deviceFingerprint ? deviceFingerprint.substring(0, 20) + "..." : "Not provided",
+          ip: ipAddress || "Unknown",
+          nonce
+        };
+        
+        await fetch(discordWebhook, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: `New Admin Authentication Request\nKey: ${newKey}\n\nSecurity Data: ${JSON.stringify(securityMetadata)}\nTimestamp: ${new Date().toLocaleString()}`
+          })
+        });
+      } catch (webhookError) {
+        console.error("Discord webhook error:", webhookError);
+        // Continue anyway - webhook failure shouldn't block the process
+      }
+      
+      return new Response(JSON.stringify({
+        success: true,
+        message: "Authentication key generated",
+        data: { nonce, expires: expiresAt.toISOString() }
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
     }
     
-    // Verify authentication key
-    if (path === "verify-key" && req.method === "POST") {
-      const { key, nonce, deviceFingerprint } = await req.json();
+    // 2. Verify Authentication Key
+    else if (action === "verifyKey") {
+      const { key, nonce, deviceFingerprint, ipAddress } = data;
       
       if (!key || !nonce || !deviceFingerprint) {
-        throw new Error("Missing required parameters");
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Missing required authentication data"
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
       
-      // Find the key in the database
-      const { data, error } = await supabase
-        .from('admin_auth')
-        .select('*')
-        .eq('auth_key', key)
-        .eq('nonce', nonce)
-        .eq('device_fingerprint', deviceFingerprint)
-        .gt('expires_at', new Date().toISOString())
-        .eq('used', false)
-        .limit(1);
-        
-      if (error || !data || data.length === 0) {
-        throw new Error("Invalid or expired key");
+      // Find the auth record
+      const { data: authData, error } = await supabase
+        .from("admin_auth")
+        .select("*")
+        .eq("nonce", nonce)
+        .eq("used", false)
+        .single();
+      
+      if (error || !authData) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Invalid or expired authentication attempt"
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
       
-      // Mark the key as used
+      // Check expiration
+      if (new Date(authData.expires_at) < new Date()) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Authentication key expired"
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      
+      // Verify key
+      if (authData.auth_key !== key) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Invalid authentication key"
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      
+      // Mark key as used
       await supabase
-        .from('admin_auth')
+        .from("admin_auth")
         .update({ used: true })
-        .eq('id', data[0].id);
+        .eq("id", authData.id);
       
-      // Determine 2FA contact method (email or SMS)
-      // For this example, we'll use email
-      const contactMethod = "email";
-      const contactValue = "phuset.zzii@gmail.con";
+      // Generate session
+      const sessionToken = crypto.randomUUID();
+      const sessionExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
       
-      // Generate and send 2FA code
-      const code = await sendTwoFactorCode(supabase, contactMethod, contactValue);
+      // Store session
+      const { error: sessionError } = await supabase
+        .from("admin_sessions")
+        .insert([{
+          session_token: sessionToken,
+          device_fingerprint: deviceFingerprint,
+          expires_at: sessionExpiry.toISOString(),
+          ip_address: ipAddress,
+          user_agent: req.headers.get("user-agent") || ""
+        }]);
       
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Key verified successfully. 2FA code sent.",
-          contactMethod,
-          contactValue: contactValue.substring(0, 3) + '***' + contactValue.substring(contactValue.indexOf('@')),
-          // For development, include the code
-          code: code
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-    
-    // Verify 2FA code
-    if (path === "verify-2fa" && req.method === "POST") {
-      const { code, deviceFingerprint, contactMethod, contactValue } = await req.json();
-      
-      if (!code || !deviceFingerprint || !contactMethod || !contactValue) {
-        throw new Error("Missing required parameters");
+      if (sessionError) {
+        throw new Error(sessionError.message);
       }
       
-      // Verify the 2FA code
-      const isValid = await verifyTwoFactorCode(supabase, code, contactMethod, contactValue);
-      
-      if (!isValid) {
-        throw new Error("Invalid or expired 2FA code");
-      }
-      
-      // Create a session
-      const sessionToken = await createAdminSession(supabase, deviceFingerprint, ipAddress, userAgent);
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
+      return new Response(JSON.stringify({
+        success: true,
+        message: "Authentication successful",
+        data: {
           sessionToken,
-          expiresIn: SESSION_EXPIRY_HOURS * 60 * 60 // in seconds
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
+          expiresAt: sessionExpiry.toISOString()
         }
-      );
-    }
-    
-    // Verify session
-    if (path === "verify-session" && req.method === "POST") {
-      const { sessionToken, deviceFingerprint } = await req.json();
-      
-      if (!sessionToken || !deviceFingerprint) {
-        throw new Error("Missing required parameters");
-      }
-      
-      // Find the session in the database
-      const { data, error } = await supabase
-        .from('admin_sessions')
-        .select('*')
-        .eq('session_token', sessionToken)
-        .eq('device_fingerprint', deviceFingerprint)
-        .gt('expires_at', new Date().toISOString())
-        .limit(1);
-        
-      if (error || !data || data.length === 0) {
-        throw new Error("Invalid or expired session");
-      }
-      
-      // Update last active timestamp
-      await supabase
-        .from('admin_sessions')
-        .update({ last_active: new Date().toISOString() })
-        .eq('id', data[0].id);
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          valid: true
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-    
-    // Logout
-    if (path === "logout" && req.method === "POST") {
-      const { sessionToken, deviceFingerprint } = await req.json();
-      
-      if (!sessionToken || !deviceFingerprint) {
-        throw new Error("Missing required parameters");
-      }
-      
-      // Delete the session
-      const { error } = await supabase
-        .from('admin_sessions')
-        .delete()
-        .eq('session_token', sessionToken)
-        .eq('device_fingerprint', deviceFingerprint);
-        
-      if (error) {
-        console.error("Error deleting session:", error);
-      }
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Logged out successfully"
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-    
-    // Handle unknown paths
-    return new Response(
-      JSON.stringify({ error: "Not found" }),
-      {
-        status: 404,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+    
+    // 3. Validate Session
+    else if (action === "validateSession") {
+      const { sessionToken, deviceFingerprint } = data;
+      
+      if (!sessionToken || !deviceFingerprint) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Missing session data"
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
-    );
-  } catch (error: any) {
-    return new Response(
-      JSON.stringify({
+      
+      // Find the session
+      const { data: sessionData, error } = await supabase
+        .from("admin_sessions")
+        .select("*")
+        .eq("session_token", sessionToken)
+        .single();
+      
+      if (error || !sessionData) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Invalid session"
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      
+      // Check expiration
+      if (new Date(sessionData.expires_at) < new Date()) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Session expired"
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      
+      // Verify fingerprint
+      if (sessionData.device_fingerprint !== deviceFingerprint) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Device verification failed"
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      
+      // Update last active time
+      await supabase
+        .from("admin_sessions")
+        .update({ last_active: new Date().toISOString() })
+        .eq("id", sessionData.id);
+      
+      return new Response(JSON.stringify({
+        success: true,
+        message: "Session validated",
+        data: {
+          expiresAt: sessionData.expires_at
+        }
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+    
+    // 4. Send 2FA Code
+    else if (action === "send2FACode") {
+      const { contactMethod, contactValue } = data;
+      
+      if (!contactMethod || !contactValue) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Missing contact information"
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      
+      // Generate a 6-digit code
+      const authCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      
+      // Store in database
+      const { error } = await supabase
+        .from("two_factor_auth")
+        .insert([{
+          auth_code: authCode,
+          contact_method: contactMethod,
+          contact_value: contactValue,
+          expires_at: expiresAt.toISOString()
+        }]);
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      // Send code via Discord webhook for demo purposes
+      // In production, this should be replaced with proper email or SMS sending
+      try {
+        await fetch(discordWebhook, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: `2FA Code for ${contactMethod} (${contactValue}): ${authCode}\nExpires at: ${expiresAt.toLocaleString()}`
+          })
+        });
+      } catch (webhookError) {
+        console.error("Discord webhook error:", webhookError);
+      }
+      
+      return new Response(JSON.stringify({
+        success: true,
+        message: `2FA code sent to your ${contactMethod}`,
+        data: {
+          contactMethod,
+          expiresAt: expiresAt.toISOString()
+        }
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+    
+    // 5. Verify 2FA Code
+    else if (action === "verify2FACode") {
+      const { contactMethod, contactValue, authCode } = data;
+      
+      if (!contactMethod || !contactValue || !authCode) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Missing verification data"
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      
+      // Find the 2FA record
+      const { data: codeData, error } = await supabase
+        .from("two_factor_auth")
+        .select("*")
+        .eq("auth_code", authCode)
+        .eq("contact_method", contactMethod)
+        .eq("contact_value", contactValue)
+        .eq("verified", false)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error || !codeData) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Invalid verification code"
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      
+      // Check expiration
+      if (new Date(codeData.expires_at) < new Date()) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Verification code expired"
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      
+      // Mark as verified
+      await supabase
+        .from("two_factor_auth")
+        .update({ verified: true })
+        .eq("id", codeData.id);
+      
+      return new Response(JSON.stringify({
+        success: true,
+        message: "2FA verification successful"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+    
+    // 6. Logout
+    else if (action === "logout") {
+      const { sessionToken } = data;
+      
+      if (!sessionToken) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Missing session token"
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      
+      // Remove the session
+      await supabase
+        .from("admin_sessions")
+        .delete()
+        .eq("session_token", sessionToken);
+      
+      return new Response(JSON.stringify({
+        success: true,
+        message: "Logged out successfully"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+    
+    else {
+      return new Response(JSON.stringify({
         success: false,
-        error: error.message || "An error occurred"
-      }),
-      {
+        message: "Invalid action"
+      }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
+      });
+    }
+  } catch (error) {
+    console.error("Admin auth function error:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      message: "Internal server error",
+      error: process.env.NODE_ENV !== "production" ? error.message : "An unknown error occurred"
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
   }
 });

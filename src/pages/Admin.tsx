@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { IdData } from '@/components/IdDetails';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 
 // RC Data type
 interface RcData {
@@ -24,7 +23,7 @@ interface RcData {
 const Admin = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading, logout } = useAuth();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   
   // RC form state
   const [rcFormData, setRcFormData] = useState({
@@ -82,7 +81,39 @@ const Admin = () => {
   const [savedIds, setSavedIds] = useState<IdData[]>([]);
 
   useEffect(() => {
-    // Load saved IDs and RC items when authenticated
+    let intervalId: NodeJS.Timeout;
+
+    const checkAuth = () => {
+      try {
+        const isAuth = localStorage.getItem('adminAuthenticated') === 'true';
+        setIsAuthenticated(isAuth);
+        if (isAuth) {
+          clearInterval(intervalId);
+        }
+      } catch (error) {
+        toast({
+          title: "ข้อผิดพลาด",
+          description: "ไม่สามารถตรวจสอบการยืนยันตัวตนได้ โปรดลองใหม่",
+          variant: "destructive",
+          duration: 7000,
+        });
+        setIsAuthenticated(false);
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      checkAuth();
+      intervalId = setInterval(checkAuth, 500);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
+  }, [toast]);
+
+  // Load saved IDs and RC items when authenticated
+  useEffect(() => {
     const loadSavedIds = async () => {
       try {
         const { data: idData, error: idError } = await supabase
@@ -705,16 +736,25 @@ const Admin = () => {
   };
 
   const handleLogout = () => {
-    logout();
-    navigate('/', { replace: true });
+    try {
+      localStorage.removeItem('adminAuthenticated');
+      localStorage.removeItem('auth_client_hash');
+      localStorage.removeItem('auth_key_timestamp');
+      localStorage.removeItem('usedKeys');
+      setIsAuthenticated(false);
+      navigate('/', { replace: true });
+    } catch {
+      toast({
+        title: "ข้อผิดพลาด",
+        description: "ไม่สามารถออกจากระบบได้ โปรดลองใหม่",
+        variant: "destructive",
+        duration: 7000,
+      });
+    }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin h-10 w-10 border-4 border-pink-300 rounded-full border-t-transparent"></div>
-      </div>
-    );
+  if (isAuthenticated === null) {
+    return null;
   }
 
   if (!isAuthenticated) {

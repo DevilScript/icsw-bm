@@ -1,92 +1,81 @@
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { PuffLoader } from 'react-spinners';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const LoadingScreen: React.FC = () => {
+interface LoadingScreenProps {
+  onLoadComplete?: () => void;
+}
+
+const LoadingScreen: React.FC<LoadingScreenProps> = ({ onLoadComplete }) => {
   const [progress, setProgress] = useState<number>(0);
-  const [isLoaded, setIsLoaded] = useState<boolean>(false);
-  
+  const [isVisible, setIsVisible] = useState<boolean>(true);
+
   useEffect(() => {
-    const loadResources = async () => {
-      try {
-        // Simulate loading data from Supabase
-        const promises = [
-          // Load set_id data
-          supabase.from('set_id').select('count').limit(1),
-          // Load set_rc data
-          supabase.from('set_rc').select('count').limit(1),
-          // Load set_clan data
-          supabase.from('set_clan').select('count').limit(1),
-          // Simulate loading assets
-          new Promise(resolve => setTimeout(resolve, 500))
-        ];
-        
-        // Update progress as promises resolve
-        let completed = 0;
-        const totalTasks = promises.length;
-        
-        // Create a promise for each task that updates the progress
-        const progressPromises = promises.map(promise => 
-          Promise.resolve(promise).then(() => {
-            completed++;
-            setProgress(Math.floor((completed / totalTasks) * 100));
-          })
-        );
-        
-        // Wait for all promises to resolve
-        await Promise.all(progressPromises);
-        
-        // Small delay before hiding the loading screen for better UX
-        setTimeout(() => {
-          setIsLoaded(true);
-          
-          // After animation completes, update body style
-          setTimeout(() => {
-            document.body.style.overflow = 'auto';
-          }, 1000);
-        }, 500);
-      } catch (error) {
-        console.error('Error loading resources:', error);
-        // If there's an error, still hide the loading screen after a delay
-        setTimeout(() => {
-          setIsLoaded(true);
-          document.body.style.overflow = 'auto';
-        }, 2000);
-      }
-    };
-    
-    // Prevent scrolling during loading
-    document.body.style.overflow = 'hidden';
-    
-    loadResources();
+    // Simulate loading progress
+    const interval = setInterval(() => {
+      setProgress(prevProgress => {
+        const newProgress = prevProgress + Math.random() * 10;
+        return newProgress >= 100 ? 100 : newProgress;
+      });
+    }, 200);
+
+    return () => clearInterval(interval);
   }, []);
-  
+
+  useEffect(() => {
+    // When progress reaches 100%, wait a bit then hide
+    if (progress >= 100) {
+      const timeout = setTimeout(() => {
+        setIsVisible(false);
+        if (onLoadComplete) onLoadComplete();
+      }, 500);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [progress, onLoadComplete]);
+
   return (
-    <div 
-      className={`fixed top-0 left-0 w-full h-full bg-black z-50 flex flex-col justify-center items-center transition-opacity duration-1000 ${
-        isLoaded ? 'opacity-0 pointer-events-none' : 'opacity-100'
-      }`}
-    >
-      <div className="text-center">
-        <div className="flex items-center justify-center mb-8">
-          <h1 className="text-6xl font-bold text-white">
-            ICS
-            <span className="text-pink-300 animate-pulse-glow">
-              W
-            </span>
-          </h1>
-        </div>
-        
-        <div className="w-64 h-2 bg-gray-800 rounded-full mb-4 overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-pink-300 to-pink-400 rounded-full transition-all duration-300 ease-out"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        
-        <p className="text-white text-sm">กำลังโหลด... {progress}%</p>
-      </div>
-    </div>
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div 
+          className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center"
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <motion.div 
+            className="flex flex-col items-center"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="text-6xl font-bold mb-8 relative">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-purple-400">
+                ICSW
+              </span>
+              <div className="absolute -bottom-4 left-0 right-0 h-0.5 bg-gradient-to-r from-pink-300/0 via-pink-300 to-pink-300/0"></div>
+            </div>
+            
+            <PuffLoader color="#ec4899" size={60} speedMultiplier={1.2} />
+            
+            <div className="mt-8 w-64 relative">
+              <div className="h-1 w-full bg-gray-800 rounded-full overflow-hidden">
+                <motion.div 
+                  className="h-full bg-gradient-to-r from-pink-300 to-purple-400"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ ease: "easeInOut" }}
+                />
+              </div>
+              <div className="mt-2 text-sm text-pink-300 text-center">
+                Loading... {Math.round(progress)}%
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
