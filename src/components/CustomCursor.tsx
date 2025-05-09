@@ -43,7 +43,7 @@ const CustomCursor: React.FC = () => {
         target.closest('input') ||
         target.classList.contains('hoverable');
       
-      setHovering(isHoverable);
+      setHovering(Boolean(isHoverable));
     };
 
     // Mouse down/up handlers
@@ -107,6 +107,16 @@ const CustomCursor: React.FC = () => {
       cursor.classList.remove('hovering');
       cursorRing.classList.remove('hovering');
     }
+
+    // Add pastel pink color to cursor
+    cursor.style.backgroundColor = 'rgba(255, 192, 203, 0.8)'; // Pastel pink with opacity
+    cursorRing.style.borderColor = 'rgba(255, 150, 180, 0.5)'; // Lighter pastel pink for ring
+    
+    // Make cursor slightly larger
+    cursor.style.width = '12px'; // Original was probably smaller
+    cursor.style.height = '12px'; // Original was probably smaller
+    cursorRing.style.width = '32px'; // Original was probably smaller
+    cursorRing.style.height = '32px'; // Original was probably smaller
   }, [position, clicking, hovering, hidden, cursorVisible]);
 
   return null; // Cursor is created in useEffect with DOM API for better performance

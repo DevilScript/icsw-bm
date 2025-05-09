@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { encrypt, decrypt } from "https://deno.land/x/oak_crypto@v0.1.2/mod.ts";
 
 // CORS headers for browser access
 const corsHeaders = {
@@ -19,6 +18,60 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Secret key for encryption/decryption
 const SECRET_KEY = Deno.env.get("ADMIN_ENCRYPTION_KEY") || "ghoulre2025SecureKeyDoNotShare";
+
+// Simple encryption function (replacing oak_crypto)
+async function encrypt(text: string, secretKey: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const keyData = encoder.encode(secretKey);
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    cryptoKey,
+    data
+  );
+  const signatureArray = Array.from(new Uint8Array(signature));
+  const signatureHex = signatureArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  // Base64 encode the original text
+  const base64 = btoa(text);
+  
+  // Return both for verification
+  return base64 + '.' + signatureHex;
+}
+
+// Simple decryption function (replacing oak_crypto)
+async function decrypt(encrypted: string, secretKey: string): Promise<string | null> {
+  try {
+    const parts = encrypted.split('.');
+    if (parts.length !== 2) return null;
+    
+    const base64Text = parts[0];
+    const providedSignature = parts[1];
+    
+    // Decode the base64 text
+    const text = atob(base64Text);
+    
+    // Verify signature
+    const computed = await encrypt(text, secretKey);
+    const computedSignature = computed.split('.')[1];
+    
+    if (providedSignature !== computedSignature) {
+      return null; // Signature verification failed
+    }
+    
+    return text;
+  } catch (e) {
+    console.error("Decryption error:", e);
+    return null;
+  }
+}
 
 // Generate a random key
 function generateRandomKey(): string {
