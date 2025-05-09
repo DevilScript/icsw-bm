@@ -1,412 +1,454 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Key, Lock, Shield } from 'lucide-react';
+import { Key, Lock, Shield, Fingerprint, Mail, Send } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import GlassCard from './GlassCard';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { PuffLoader } from 'react-spinners';
+import * as CryptoJS from 'crypto-js';
 
-const AdminAuth = () => {
-  const [adminKey, setAdminKey] = useState<string>('');
+// Auth step states
+enum AuthStep {
+  REQUEST_KEY = 1,
+  ENTER_KEY = 2,
+  TWO_FACTOR = 3
+}
+
+interface FingerPrintData {
+  screen: string;
+  colorDepth: number;
+  timezone: string;
+  language: string;
+  userAgent: string;
+  webglFingerprint?: string;
+  plugins?: string;
+  fonts?: string;
+  canvas?: string;
+  hardware?: string;
+}
+
+const AdminAuth: React.FC = () => {
+  // State variables
+  const [authStep, setAuthStep] = useState<AuthStep>(AuthStep.REQUEST_KEY);
   const [inputKey, setInputKey] = useState<string>('');
-  const [keyGenerated, setKeyGenerated] = useState<boolean>(false);
-  const [authStep, setAuthStep] = useState<number>(1); // Added auth step tracking
-  const [securityToken, setSecurityToken] = useState<string>(''); // Added security token
+  const [nonce, setNonce] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [otpCode, setOtpCode] = useState<string>('');
+  const [contactMethod, setContactMethod] = useState<string>('email');
+  const [contactValue, setContactValue] = useState<string>('phuset.zzii@gmail.com');
   const [authAttempts, setAuthAttempts] = useState<number>(0);
+  const [keyExpiry, setKeyExpiry] = useState<Date | null>(null);
+  
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Check if admin is authenticated on mount
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
+  // Generate an enhanced fingerprint using available browser properties
+  const generateFingerprint = useCallback(async (): Promise<string> => {
+    try {
+      const fingerprint: FingerPrintData = {
+        screen: `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`,
+        colorDepth: window.screen.colorDepth,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        language: navigator.language,
+        userAgent: navigator.userAgent,
+      };
 
-    const checkAuth = () => {
+      // Add WebGL fingerprint if available
       try {
-        const adminAuth = localStorage.getItem('adminAuthenticated');
-        const authTimestamp = localStorage.getItem('auth_key_timestamp');
-        const storedToken = localStorage.getItem('security_token');
-        const storedFingerprint = localStorage.getItem('auth_fingerprint');
-        
-        // Check if auth is still valid (24 hour expiry)
-        if (adminAuth === 'true' && authTimestamp && storedToken && storedFingerprint) {
-          const now = new Date().getTime();
-          const authTime = new Date(authTimestamp).getTime();
-          const hoursDiff = (now - authTime) / (1000 * 60 * 60);
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl');
+        if (gl) {
+          const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+          if (debugInfo) {
+            fingerprint.webglFingerprint = 
+              gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) + '~' +
+              gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+          }
           
-          // Generate current fingerprint for verification
-          const currentFingerprint = generateFingerprint();
-          
-          if (hoursDiff < 24 && storedFingerprint === currentFingerprint) {
-            // Verify token with server
-            try {
-              // Generate device hash for verification
-              const clientHash = generateClientHash();
-              // Create expected token format for verification
-              const expectedTokenHash = generateTokenHash(clientHash, authTimestamp);
-              
-              // Verify token starts with expected hash
-              if (storedToken.startsWith(expectedTokenHash)) {
-                navigate('/admin');
-                return;
-              } else {
-                handleLogout('Token verification failed');
-              }
-            } catch (err) {
-              handleLogout('Authentication error');
-            }
-          } else {
-            // Auth expired or device changed
-            handleLogout(hoursDiff >= 24 ? 'Session expired' : 'Device verification failed');
+          // Canvas fingerprinting
+          canvas.width = 220;
+          canvas.height = 30;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillStyle = '#f60';
+            ctx.fillRect(125, 1, 62, 20);
+            ctx.fillStyle = '#069';
+            ctx.font = '11pt Arial';
+            ctx.fillText("GhoulRe", 2, 15);
+            ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+            ctx.font = '18pt Arial';
+            ctx.fillText("GhoulRe", 4, 17);
+            fingerprint.canvas = canvas.toDataURL();
           }
         }
+      } catch (e) {
+        console.error("WebGL fingerprinting failed:", e);
+      }
+
+      // Add hardware info 
+      try {
+        if (navigator.hardwareConcurrency) {
+          fingerprint.hardware = `cores:${navigator.hardwareConcurrency}`;
+        }
+      } catch (e) {}
+
+      // Create a hash of all collected data
+      const fingerprintString = JSON.stringify(fingerprint);
+      const hash = CryptoJS.SHA256(fingerprintString).toString();
+      
+      return hash;
+    } catch (error) {
+      console.error("Error generating fingerprint:", error);
+      return CryptoJS.SHA256(navigator.userAgent + Date.now().toString()).toString();
+    }
+  }, []);
+
+  // Get client IP address using an external service for demo purposes
+  const getClientIP = async (): Promise<string | null> => {
+    try {
+      const response = await fetch('https://api.ipify.org?format=json');
+      const data = await response.json();
+      return data.ip;
+    } catch (error) {
+      console.error("Could not get IP address:", error);
+      return null;
+    }
+  };
+
+  // Check if user is already authenticated on component mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Get session token from sessionStorage (more secure than localStorage)
+        const sessionToken = sessionStorage.getItem('admin_session');
+        
+        if (!sessionToken) return;
+        
+        // Get device fingerprint
+        const deviceFingerprint = await generateFingerprint();
+        
+        // Validate session with backend
+        const response = await supabase.functions.invoke('admin-auth', {
+          body: {
+            action: 'validateSession',
+            data: { sessionToken, deviceFingerprint }
+          }
+        });
+        
+        if (response.data.success) {
+          navigate('/admin');
+        } else {
+          // Clear invalid session
+          sessionStorage.removeItem('admin_session');
+        }
       } catch (error) {
+        console.error("Auth check error:", error);
+        sessionStorage.removeItem('admin_session');
+      }
+    };
+    
+    checkAuth();
+  }, [generateFingerprint, navigate]);
+
+  // Request authentication key
+  const handleGetKey = async () => {
+    try {
+      setIsLoading(true);
+      setAuthAttempts(prev => prev + 1);
+
+      // Generate device fingerprint
+      const deviceFingerprint = await generateFingerprint();
+      const ipAddress = await getClientIP();
+
+      // Request key from backend
+      const response = await supabase.functions.invoke('admin-auth', {
+        body: {
+          action: 'generateKey',
+          data: { deviceFingerprint, ipAddress }
+        }
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to generate authentication key');
+      }
+      
+      // Store nonce for verification
+      setNonce(response.data.data.nonce);
+      
+      // Set key expiry
+      if (response.data.data.expires) {
+        setKeyExpiry(new Date(response.data.data.expires));
+      }
+      
+      // Move to next auth step
+      setAuthStep(AuthStep.ENTER_KEY);
+      
+      // Start expiry timer
+      if (response.data.data.expires) {
+        const expiryTime = new Date(response.data.data.expires).getTime() - Date.now();
+        if (expiryTime > 0) {
+          setTimeout(() => {
+            if (authStep === AuthStep.ENTER_KEY) {
+              toast({
+                title: "Key expired",
+                description: "Your authentication key has expired. Please request a new one.",
+                variant: "destructive",
+                duration: 5000,
+              });
+              setAuthStep(AuthStep.REQUEST_KEY);
+            }
+          }, expiryTime);
+        }
+      }
+      
+      toast({
+        title: "Key requested",
+        description: "Authentication key has been sent to Discord. Please check Discord and enter the key.",
+        duration: 7000,
+      });
+    } catch (error) {
+      console.error("Error generating key:", error);
+      
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to request authentication key",
+        variant: "destructive",
+        duration: 7000,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Verify the entered key
+  const handleKeySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!inputKey || !nonce) {
+      toast({
+        title: "Error",
+        description: "Authentication key is required",
+        variant: "destructive",
+        duration: 5000,
+      });
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      
+      // Generate device fingerprint
+      const deviceFingerprint = await generateFingerprint();
+      const ipAddress = await getClientIP();
+      
+      // Verify key with backend
+      const response = await supabase.functions.invoke('admin-auth', {
+        body: {
+          action: 'verifyKey',
+          data: { 
+            key: inputKey,
+            nonce,
+            deviceFingerprint,
+            ipAddress
+          }
+        }
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Authentication failed');
+      }
+      
+      // Store session token in sessionStorage (more secure than localStorage)
+      sessionStorage.setItem('admin_session', response.data.data.sessionToken);
+      
+      // Proceed to 2FA
+      setAuthStep(AuthStep.TWO_FACTOR);
+      
+      // Initiate 2FA authentication
+      await send2FACode();
+      
+    } catch (error) {
+      console.error("Key verification error:", error);
+      
+      toast({
+        title: "Authentication failed",
+        description: error instanceof Error ? error.message : "Invalid authentication key",
+        variant: "destructive",
+        duration: 5000,
+      });
+      
+      // Handle too many failed attempts
+      if (authAttempts >= 3) {
         toast({
-          title: "ข้อผิดพลาด",
-          description: "ไม่สามารถตรวจสอบการยืนยันตัวตนได้ โปรดลองใหม่",
+          title: "Too many attempts",
+          description: "Too many failed attempts. Please try again later.",
           variant: "destructive",
           duration: 7000,
         });
-        setIsAuthenticated(false);
+        setAuthStep(AuthStep.REQUEST_KEY);
+        setAuthAttempts(0);
       }
-    };
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    const timeoutId = setTimeout(() => {
-      checkAuth();
-      intervalId = setInterval(checkAuth, 500);
-    }, 100);
-
-    return () => {
-      clearTimeout(timeoutId);
-      clearInterval(intervalId);
-    };
-  }, [toast, navigate]);
-
-  // Generate a more robust client hash using multiple browser characteristics
-  const generateClientHash = (): string => {
+  // Send 2FA code to email or phone number
+  const send2FACode = async () => {
     try {
-      // Combine various browser properties for a more unique fingerprint
-      const userAgentData = navigator.userAgent;
-      const screenData = `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`;
-      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const language = navigator.language;
+      setIsLoading(true);
       
-      // Create hash from combined data
-      const combinedData = `${userAgentData}|${screenData}|${timeZone}|${language}`;
-      return btoa(combinedData);
-    } catch (error) {
-      return btoa(navigator.userAgent + Date.now().toString());
-    }
-  };
-
-  // Generate a device fingerprint that's saved for verification
-  const generateFingerprint = (): string => {
-    try {
-      const screenProps = `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`;
-      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const languages = navigator.languages ? navigator.languages.join(',') : navigator.language;
+      const response = await supabase.functions.invoke('admin-auth', {
+        body: {
+          action: 'send2FACode',
+          data: { 
+            contactMethod,
+            contactValue: contactMethod === 'email' ? 'phuset.zzii@gmail.com' : '0653835988'
+          }
+        }
+      });
       
-      // Create a more stable fingerprint that shouldn't change between sessions
-      return btoa(`${screenProps}|${timeZone}|${languages}`);
-    } catch (error) {
-      return '';
-    }
-  };
-
-  // Generate a random key function using crypto
-  const generateRandomKey = (): string => {
-    const array = new Uint8Array(16);
-    crypto.getRandomValues(array);
-    return Array.from(array, byte => ('0' + byte.toString(16)).slice(-2)).join('');
-  };
-
-  // Create a more secure token hash
-  const generateTokenHash = (clientHash: string, timestamp: string): string => {
-    try {
-      const baseHash = btoa(clientHash + timestamp);
-      return baseHash.substring(0, 16);
-    } catch (error) {
-      return '';
-    }
-  };
-
-  // Create a more secure token
-  const generateSecurityToken = (clientHash: string, timestamp: string): string => {
-    try {
-      // Create the token hash portion
-      const tokenHash = generateTokenHash(clientHash, timestamp);
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to send verification code');
+      }
       
-      // Add a random salt component
-      const randomSalt = generateRandomKey().substring(0, 8);
-      
-      // Combine for the complete token
-      return `${tokenHash}${randomSalt}`;
-    } catch (error) {
-      return '';
-    }
-  };
-
-  // Function to set authentication state
-  const setIsAuthenticated = (isAuth: boolean) => {
-    if (!isAuth) {
-      handleLogout();
-    }
-  };
-
-  // Send key to Discord webhook with additional security
-  const sendKeyToDiscord = async (key: string) => {
-    setIsLoading(true);
-    const webhookUrl = import.meta.env.VITE_DISCORD_WEBHOOK_URL;
-
-    if (!webhookUrl) {
       toast({
-        title: "Configuration Error",
-        description: "Discord webhook URL is missing. Please contact support.",
-        variant: "destructive",
-        duration: 7000,
+        title: "Verification code sent",
+        description: `A verification code has been sent to your ${contactMethod}`,
+        duration: 5000,
       });
-      handleLogout();
-      setIsLoading(false);
-      return false;
-    }
-
-    try {
-      // Add timestamp and client information for security
-      const timestamp = new Date().toISOString();
-      const clientHash = generateClientHash();
-      const token = generateSecurityToken(clientHash, timestamp);
-      const fingerprint = generateFingerprint();
-      
-      setSecurityToken(token);
-      
-      // Store token, timestamp and fingerprint for verification
-      localStorage.setItem('security_token', token);
-      localStorage.setItem('auth_client_hash', clientHash);
-      localStorage.setItem('auth_key_timestamp', timestamp);
-      localStorage.setItem('auth_fingerprint', fingerprint);
-
-      // Add additional IP fingerprinting and device info
-      const securityInfo = {
-        timestamp,
-        tokenHash: btoa(token).substring(0, 8), // Only send a hash of the token
-        fingerprint: btoa(fingerprint).substring(0, 8), // Only send a hash of the fingerprint
-        auth_attempt: authAttempts + 1
-      };
-      
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: `New Admin Authentication Request\nKey: ${key}\n\n\nVerification Data: ${JSON.stringify(securityInfo)}\nTimestamp: ${new Date().toLocaleString()}`,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send key to Discord');
-      }
-      
-      // Update auth attempt counter
-      setAuthAttempts(prev => prev + 1);
-      setAuthStep(2); // Move to next auth step
-      setIsLoading(false);
-      return true;
     } catch (error) {
+      console.error("2FA code sending error:", error);
+      
       toast({
         title: "Error",
-        description: "Failed to send key to Discord. Please try again or contact support.",
+        description: error instanceof Error ? error.message : "Failed to send verification code",
         variant: "destructive",
-        duration: 7000,
+        duration: 5000,
       });
-      handleLogout();
+    } finally {
       setIsLoading(false);
-      return false;
     }
   };
 
-  const handleGetKey = async () => {
-    const newKey = generateRandomKey();
-    setAdminKey(newKey);
-    setKeyGenerated(true);
-    await sendKeyToDiscord(newKey);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  // Verify 2FA code
+  const handleOTPSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     
-    // Enhanced security checks
-    // Get stored security data for verification
-    const storedClientHash = localStorage.getItem('auth_client_hash');
-    const storedTimestamp = localStorage.getItem('auth_key_timestamp');
-    const storedToken = localStorage.getItem('security_token');
-    const storedFingerprint = localStorage.getItem('auth_fingerprint');
-    const currentHash = generateClientHash();
-    const currentFingerprint = generateFingerprint();
-    
-    // Get used keys from local storage
-    const usedKeys = JSON.parse(localStorage.getItem('usedKeys') || '[]');
-    
-    // Multi-factor verification
-    if (!storedClientHash || !storedTimestamp || !storedToken || !securityToken || !storedFingerprint) {
+    if (!otpCode || otpCode.length !== 6) {
       toast({
-        title: "Security Alert",
-        description: "Authentication sequence violation. Please restart authentication.",
+        title: "Error",
+        description: "Please enter a valid 6-digit verification code",
         variant: "destructive",
+        duration: 5000,
       });
-      handleLogout();
-      setIsLoading(false);
       return;
     }
     
-    // Verify the client hasn't changed
-    if (storedClientHash !== currentHash) {
-      toast({
-        title: "Security Alert",
-        description: "Client verification failed. Authentication sequence tampered.",
-        variant: "destructive",
-      });
-      handleLogout();
-      setIsLoading(false);
-      return;
-    }
-
-    // Verify device fingerprint
-    if (storedFingerprint !== currentFingerprint) {
-      toast({
-        title: "Security Alert",
-        description: "Device fingerprint verification failed.",
-        variant: "destructive",
-      });
-      handleLogout();
-      setIsLoading(false);
-      return;
-    }
-    
-    // Verify token matches
-    if (storedToken !== securityToken) {
-      toast({
-        title: "Security Alert",
-        description: "Token verification failed. Authentication compromised.",
-        variant: "destructive",
-      });
-      handleLogout();
-      setIsLoading(false);
-      return;
-    }
-
-    // Check key expiration - keys are valid for 5 minutes
-    const now = new Date().getTime();
-    const keyTime = new Date(storedTimestamp).getTime();
-    const minutesDiff = (now - keyTime) / (1000 * 60);
-    
-    if (minutesDiff > 5) {
-      toast({
-        title: "Key Expired",
-        description: "Authentication key has expired. Please request a new key.",
-        variant: "destructive",
-      });
-      handleLogout();
-      setIsLoading(false);
-      return;
-    }
-
-    // Check if key has been used
-    if (usedKeys.includes(inputKey)) {
-      toast({
-        title: "Access denied",
-        description: "This key has already been used. Please get a new key.",
-        variant: "destructive",
-      });
-      setInputKey('');
-      setIsLoading(false);
-      return;
-    }
-    
-    // Final verification of the key
-    if (inputKey === adminKey && keyGenerated) {
-      // Store used key
-      usedKeys.push(inputKey);
-      localStorage.setItem('usedKeys', JSON.stringify(usedKeys));
+    try {
+      setIsLoading(true);
       
-      // Set authentication
-      localStorage.setItem('adminAuthenticated', 'true');
+      const response = await supabase.functions.invoke('admin-auth', {
+        body: {
+          action: 'verify2FACode',
+          data: { 
+            contactMethod,
+            contactValue: contactMethod === 'email' ? 'phuset.zzii@gmail.com' : '0653835988',
+            authCode: otpCode
+          }
+        }
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || '2FA verification failed');
+      }
       
       toast({
-        title: "Access granted",
+        title: "Authentication successful",
         description: "Welcome to the admin dashboard",
+        duration: 5000,
       });
       
       // Navigate to admin panel
       navigate('/admin');
-    } else {
-      // Increment failed attempts counter
-      setAuthAttempts(prev => prev + 1);
+    } catch (error) {
+      console.error("2FA verification error:", error);
       
-      // If too many failed attempts, force logout
-      if (authAttempts >= 3) {
-        toast({
-          title: "Access denied",
-          description: "Too many failed attempts. Please restart authentication.",
-          variant: "destructive",
-        });
-        handleLogout();
-      } else {
-        toast({
-          title: "Access denied",
-          description: "Invalid authentication key",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Verification failed",
+        description: error instanceof Error ? error.message : "Invalid verification code",
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
       setIsLoading(false);
     }
   };
-  
-  const handleLogout = (reason?: string) => {
-    localStorage.removeItem('auth_client_hash');
-    localStorage.removeItem('auth_key_timestamp');
-    localStorage.removeItem('adminAuthenticated');
-    localStorage.removeItem('security_token');
-    localStorage.removeItem('auth_fingerprint');
-    
-    setKeyGenerated(false);
-    setSecurityToken('');
-    setAuthStep(1);
-    setInputKey('');
-    setAuthAttempts(0);
-    
-    if (reason) {
-      toast({
-        title: "Logged out",
-        description: reason,
-        variant: "destructive",
-        duration: 7000,
-      });
+
+  // Handle logout (clear session)
+  const handleLogout = async () => {
+    try {
+      const sessionToken = sessionStorage.getItem('admin_session');
+      
+      if (sessionToken) {
+        await supabase.functions.invoke('admin-auth', {
+          body: {
+            action: 'logout',
+            data: { sessionToken }
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      sessionStorage.removeItem('admin_session');
+      setAuthStep(AuthStep.REQUEST_KEY);
+      setNonce('');
+      setInputKey('');
+      setOtpCode('');
     }
   };
 
-  return (
-    <div className="flex items-center justify-center min-h-screen px-4 py-8 custom-cursor">
-      <GlassCard className="max-w-md w-full animate-float">
-        <div className="flex flex-col items-center mb-6">
-          <div className="h-16 w-16 rounded-full bg-pink-300/20 backdrop-blur-sm flex items-center justify-center mb-4 animate-pulse-glow border border-pink-300/30">
-            {authStep === 1 ? (
-              <Key size={28} className="text-pink-300" />
-            ) : (
-              <Shield size={28} className="text-pink-300" />
-            )}
-          </div>
-          <h2 className="text-2xl font-bold text-white">Admin Authentication</h2>
-          {authStep === 2 && (
-            <p className="text-glass-light text-sm mt-2">Security verification in progress. Please enter the key sent to Discord.</p>
-          )}
-        </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {authStep === 1 ? (
+  // Toggle contact method (email/phone)
+  const toggleContactMethod = () => {
+    setContactMethod(prev => prev === 'email' ? 'phone' : 'email');
+    setContactValue(contactMethod === 'email' ? '0653835988' : 'phuset.zzii@gmail.com');
+  };
+
+  // Format remaining time for key expiry
+  const formatRemainingTime = () => {
+    if (!keyExpiry) return '';
+    
+    const now = new Date();
+    const diff = keyExpiry.getTime() - now.getTime();
+    
+    if (diff <= 0) return 'Expired';
+    
+    const minutes = Math.floor(diff / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Render content based on current auth step
+  const renderAuthContent = () => {
+    switch (authStep) {
+      case AuthStep.REQUEST_KEY:
+        return (
+          <>
+            <div className="flex flex-col items-center mb-6">
+              <div className="h-16 w-16 rounded-full bg-pink-300/20 backdrop-blur-sm flex items-center justify-center mb-4 animate-pulse-glow border border-pink-300/30">
+                <Key size={28} className="text-pink-300" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Admin Authentication</h2>
+              <p className="text-glass-light text-sm mt-2">Request an authentication key to continue</p>
+            </div>
+            
             <Button 
               type="button"
               onClick={handleGetKey}
@@ -414,7 +456,7 @@ const AdminAuth = () => {
               disabled={isLoading}
             >
               {isLoading ? (
-                <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
+                <PuffLoader size={20} color="#ffffff" />
               ) : (
                 <>
                   <Lock size={16} />
@@ -422,8 +464,24 @@ const AdminAuth = () => {
                 </>
               )}
             </Button>
-          ) : (
-            <>
+          </>
+        );
+      
+      case AuthStep.ENTER_KEY:
+        return (
+          <>
+            <div className="flex flex-col items-center mb-6">
+              <div className="h-16 w-16 rounded-full bg-pink-300/20 backdrop-blur-sm flex items-center justify-center mb-4 animate-pulse-glow border border-pink-300/30">
+                <Shield size={28} className="text-pink-300" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Admin Authentication</h2>
+              <p className="text-glass-light text-sm mt-2">Enter the authentication key sent to Discord</p>
+              {keyExpiry && (
+                <p className="text-pink-300 text-xs mt-1">Key expires in: {formatRemainingTime()}</p>
+              )}
+            </div>
+            
+            <form onSubmit={handleKeySubmit} className="space-y-4">
               <Input
                 type="password"
                 placeholder="Enter Key"
@@ -437,10 +495,10 @@ const AdminAuth = () => {
               <Button 
                 type="submit" 
                 className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-lg shadow-pink-400/20 transition-all duration-300 flex items-center justify-center gap-2"
-                disabled={!keyGenerated || isLoading}
+                disabled={isLoading}
               >
                 {isLoading ? (
-                  <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
+                  <PuffLoader size={20} color="#ffffff" />
                 ) : (
                   <>
                     <Shield size={16} />
@@ -448,9 +506,102 @@ const AdminAuth = () => {
                   </>
                 )}
               </Button>
-            </>
-          )}
-        </form>
+              
+              <Button 
+                type="button"
+                variant="ghost" 
+                className="w-full mt-2 text-glass-light hover:text-white hover:bg-transparent"
+                onClick={() => setAuthStep(AuthStep.REQUEST_KEY)}
+                disabled={isLoading}
+              >
+                Back
+              </Button>
+            </form>
+          </>
+        );
+      
+      case AuthStep.TWO_FACTOR:
+        return (
+          <>
+            <div className="flex flex-col items-center mb-6">
+              <div className="h-16 w-16 rounded-full bg-pink-300/20 backdrop-blur-sm flex items-center justify-center mb-4 animate-pulse-glow border border-pink-300/30">
+                <Fingerprint size={28} className="text-pink-300" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Two-Factor Authentication</h2>
+              <p className="text-glass-light text-sm mt-2">
+                Enter the verification code sent to your {contactMethod}
+              </p>
+              <Button
+                variant="link"
+                className="text-pink-300 text-xs p-0 mt-1 h-auto"
+                onClick={toggleContactMethod}
+              >
+                Use {contactMethod === 'email' ? 'phone' : 'email'} instead
+              </Button>
+            </div>
+            
+            <form onSubmit={handleOTPSubmit} className="space-y-6">
+              <div className="flex flex-col items-center space-y-4">
+                <InputOTP maxLength={6} value={otpCode} onChange={setOtpCode}>
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} className="border-pink-300/30 focus:border-pink-400/80 text-white" />
+                    <InputOTPSlot index={1} className="border-pink-300/30 focus:border-pink-400/80 text-white" />
+                    <InputOTPSlot index={2} className="border-pink-300/30 focus:border-pink-400/80 text-white" />
+                    <InputOTPSlot index={3} className="border-pink-300/30 focus:border-pink-400/80 text-white" />
+                    <InputOTPSlot index={4} className="border-pink-300/30 focus:border-pink-400/80 text-white" />
+                    <InputOTPSlot index={5} className="border-pink-300/30 focus:border-pink-400/80 text-white" />
+                  </InputOTPGroup>
+                </InputOTP>
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-pink-300/30 text-pink-300 hover:bg-pink-300/10"
+                  onClick={send2FACode}
+                  disabled={isLoading}
+                >
+                  <Mail size={16} className="mr-2" />
+                  Resend code
+                </Button>
+              </div>
+              
+              <Button 
+                type="submit" 
+                className="w-full bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-lg shadow-pink-400/20 transition-all duration-300 flex items-center justify-center gap-2"
+                disabled={isLoading || otpCode.length !== 6}
+              >
+                {isLoading ? (
+                  <PuffLoader size={20} color="#ffffff" />
+                ) : (
+                  <>
+                    <Send size={16} />
+                    Verify Code
+                  </>
+                )}
+              </Button>
+              
+              <Button 
+                type="button"
+                variant="ghost" 
+                className="w-full mt-2 text-glass-light hover:text-white hover:bg-transparent"
+                onClick={handleLogout}
+                disabled={isLoading}
+              >
+                Start Over
+              </Button>
+            </form>
+          </>
+        );
+      
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen px-4 py-8 custom-cursor">
+      <GlassCard className="max-w-md w-full animate-float">
+        {renderAuthContent()}
       </GlassCard>
     </div>
   );
