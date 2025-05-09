@@ -9,75 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      admin_auth: {
-        Row: {
-          auth_key: string
-          created_at: string
-          device_fingerprint: string | null
-          expires_at: string
-          id: string
-          ip_address: string | null
-          key_hash: string
-          nonce: string
-          used: boolean
-        }
-        Insert: {
-          auth_key: string
-          created_at?: string
-          device_fingerprint?: string | null
-          expires_at: string
-          id?: string
-          ip_address?: string | null
-          key_hash: string
-          nonce: string
-          used?: boolean
-        }
-        Update: {
-          auth_key?: string
-          created_at?: string
-          device_fingerprint?: string | null
-          expires_at?: string
-          id?: string
-          ip_address?: string | null
-          key_hash?: string
-          nonce?: string
-          used?: boolean
-        }
-        Relationships: []
-      }
-      admin_sessions: {
-        Row: {
-          created_at: string
-          device_fingerprint: string
-          expires_at: string
-          id: string
-          ip_address: string | null
-          last_active: string
-          session_token: string
-          user_agent: string | null
-        }
-        Insert: {
-          created_at?: string
-          device_fingerprint: string
-          expires_at: string
-          id?: string
-          ip_address?: string | null
-          last_active?: string
-          session_token: string
-          user_agent?: string | null
-        }
-        Update: {
-          created_at?: string
-          device_fingerprint?: string
-          expires_at?: string
-          id?: string
-          ip_address?: string | null
-          last_active?: string
-          session_token?: string
-          user_agent?: string | null
-        }
-        Relationships: []
-      }
       set_clan: {
         Row: {
           clan: string
@@ -177,45 +108,12 @@ export type Database = {
         }
         Relationships: []
       }
-      two_factor_auth: {
-        Row: {
-          auth_code: string
-          contact_method: string
-          contact_value: string
-          created_at: string
-          expires_at: string
-          id: string
-          verified: boolean
-        }
-        Insert: {
-          auth_code: string
-          contact_method: string
-          contact_value: string
-          created_at?: string
-          expires_at: string
-          id?: string
-          verified?: boolean
-        }
-        Update: {
-          auth_code?: string
-          contact_method?: string
-          contact_value?: string
-          created_at?: string
-          expires_at?: string
-          id?: string
-          verified?: boolean
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      cleanup_expired_auth_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
