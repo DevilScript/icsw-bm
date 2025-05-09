@@ -43,7 +43,7 @@ const CustomCursor: React.FC = () => {
         target.closest('input') ||
         target.classList.contains('hoverable');
       
-      setHovering(Boolean(isHoverable));
+      setHovering(isHoverable ? true : false);
     };
 
     // Mouse down/up handlers

@@ -72,14 +72,18 @@ style.textContent = `
 document.head.appendChild(style);
 
 // Create root element
-const root = createRoot(document.getElementById("root")!);
+const rootElement = document.getElementById("root");
 
-// Render app with CustomCursor
-root.render(
-  <>
+if (!rootElement) {
+  console.error("Failed to find the root element");
+} else {
+  const root = createRoot(rootElement);
+  
+  // Render app with CustomCursor
+  root.render(
     <Suspense fallback={null}>
       <CustomCursor />
+      <App />
     </Suspense>
-    <App />
-  </>
-);
+  );
+}

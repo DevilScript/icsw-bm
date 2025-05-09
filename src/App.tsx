@@ -14,26 +14,24 @@ import Navbar from "./components/Navbar";
 import Contributors from '@/pages/Contributors';
 import LoadingScreen from "./components/LoadingScreen";
 
+// Create a QueryClient instance outside the component
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false, // Improves performance
-      retry: 1, // Limit retries for better performance
+      refetchOnWindowFocus: false,
+      retry: 1,
     },
   },
 });
 
+// Define the App component as a function component
 const App = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [appReady, setAppReady] = useState<boolean>(false);
 
   useEffect(() => {
-    // Simulate loading time and pre-fetch essential data
     const loadApp = async () => {
       try {
-        // Add any prefetching logic here that you need before showing the app
-        // For example, prefetch common data that multiple components will need
-        
         // Add a minimum loading time for better UX
         await new Promise(resolve => setTimeout(resolve, 1500));
         
