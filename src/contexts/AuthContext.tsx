@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -173,11 +174,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (session.token) {
         // Call the logout endpoint
-        await fetch(`${process.env.SUPABASE_URL || 'https://tnwgtlyuabpmxsqiyjof.supabase.co'}/functions/v1/admin-auth/logout`, {
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL || 'https://tnwgtlyuabpmxsqiyjof.supabase.co'}/functions/v1/admin-auth/logout`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRud2d0bHl1YWJwbXhzcWl5am9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0NjE5NjgsImV4cCI6MjA2MjAzNzk2OH0.4YzXbSFRNp_qqPH_3pTltCJue7Mwsgh5GRHI0ZIjZ64'}`
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRud2d0bHl1YWJwbXhzcWl5am9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0NjE5NjgsImV4cCI6MjA2MjAzNzk2OH0.4YzXbSFRNp_qqPH_3pTltCJue7Mwsgh5GRHI0ZIjZ64'}`
           },
           body: JSON.stringify({
             sessionToken: session.token,
@@ -208,11 +209,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const deviceFingerprint = generateDeviceFingerprint();
       
       // Verify the session with the server
-      const response = await fetch(`${process.env.SUPABASE_URL || 'https://tnwgtlyuabpmxsqiyjof.supabase.co'}/functions/v1/admin-auth/verify-session`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL || 'https://tnwgtlyuabpmxsqiyjof.supabase.co'}/functions/v1/admin-auth/verify-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRud2d0bHl1YWJwbXhzcWl5am9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0NjE5NjgsImV4cCI6MjA2MjAzNzk2OH0.4YzXbSFRNp_qqPH_3pTltCJue7Mwsgh5GRHI0ZIjZ64'}`
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRud2d0bHl1YWJwbXhzcWl5am9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0NjE5NjgsImV4cCI6MjA2MjAzNzk2OH0.4YzXbSFRNp_qqPH_3pTltCJue7Mwsgh5GRHI0ZIjZ64'}`
         },
         body: JSON.stringify({
           sessionToken: session.token,
