@@ -60,7 +60,7 @@ const LoadingScreen: React.FC = () => {
         isLoaded ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
       style={{ display: isLoaded ? 'none' : 'flex' }} // Ensure hidden when loaded
-    >
+    
       <div className="text-center">
         <div className="flex items-center justify-center mb-8">
           <h1 className="text-6xl font-bold text-white">
