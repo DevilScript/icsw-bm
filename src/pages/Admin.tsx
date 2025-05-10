@@ -144,6 +144,7 @@ const Admin = () => {
         if (clanError) throw clanError;
         setSavedClans(clanData || []);
       } catch (error) {
+        console.error('Error loading initial data:', error);
         toast({
           title: "ข้อผิดพลาด",
           description: "ไม่สามารถโหลดข้อมูลได้",
@@ -168,6 +169,7 @@ const Admin = () => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'set_rc' },
         async () => {
+          console.log('RC data changed, reloading...');
           const { data, error } = await supabase
             .from('set_rc')
             .select('*');
@@ -186,6 +188,7 @@ const Admin = () => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'set_clan' },
         async () => {
+          console.log('Clan data changed, reloading...');
           const { data, error } = await supabase
             .from('set_clan')
             .select('*');
@@ -205,6 +208,7 @@ const Admin = () => {
   }, [isAuthenticated]);
 
   const handleFactionChange = (faction: string, formType: 'add' | 'edit' | 'wipe') => {
+    console.log(`handleFactionChange called: faction=${faction}, formType=${formType}`);
     let newClan = '';
     let newKagune = '';
     
@@ -222,6 +226,8 @@ const Admin = () => {
       newClan = '';
       newKagune = '';
     }
+    
+    console.log(`New values: clan=${newClan}, kagune=${newKagune}, rank=${faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0]}`);
 
     if (formType === 'add') {
       setRcFormData({
@@ -231,6 +237,7 @@ const Admin = () => {
         kagune: newKagune,
         rank: faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0]
       });
+      console.log('Updated rcFormData:', { faction, clan: newClan, kagune: newKagune, rank: faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0] });
     } else if (formType === 'edit') {
       setEditFormData({
         ...editFormData,
@@ -239,6 +246,7 @@ const Admin = () => {
         kagune: newKagune,
         rank: faction === 'CCG' ? ccgRanks[0] : editFormData.rank || ghoulRanks[0]
       });
+      console.log('Updated editFormData:', { faction, clan: newClan, kagune: newKagune, rank: faction === 'CCG' ? ccgRanks[0] : editFormData.rank || ghoulRanks[0] });
     } else if (formType === 'wipe') {
       const currentClan = savedClans.find(c => c.clan === newClan && c.faction === faction);
       setWipeFormData({
@@ -247,14 +255,18 @@ const Admin = () => {
         clan: newClan,
         currentCount: currentClan ? currentClan.count : 0
       });
+      console.log('Updated wipeFormData:', { faction, clan: newClan, currentCount: currentClan ? currentClan.count : 0 });
     }
   };
 
   const handleClanChange = (clan: string, formType: 'add' | 'edit' | 'wipe') => {
+    console.log(`handleClanChange called: clan=${clan}, formType=${formType}`);
     if (formType === 'add') {
       setRcFormData({ ...rcFormData, clan });
+      console.log('Updated rcFormData clan:', clan);
     } else if (formType === 'edit') {
       setEditFormData({ ...editFormData, clan });
+      console.log('Updated editFormData clan:', clan);
     } else if (formType === 'wipe') {
       const currentClan = savedClans.find(c => c.clan === clan && c.faction === wipeFormData.faction);
       setWipeFormData({
@@ -262,6 +274,7 @@ const Admin = () => {
         clan,
         currentCount: currentClan ? currentClan.count : 0
       });
+      console.log('Updated wipeFormData clan:', { clan, currentCount: currentClan ? currentClan.count : 0 });
     }
   };
 
@@ -269,6 +282,7 @@ const Admin = () => {
     e.preventDefault();
 
     if (rcFormData.faction === 'None') {
+      console.error('Validation failed: faction is None');
       toast({
         title: "ข้อผิดพลาด",
         description: "โปรดเลือกฝ่าย (CCG หรือ Ghoul)",
@@ -279,6 +293,7 @@ const Admin = () => {
     }
 
     if (rcFormData.faction === 'Ghoul' && !['Yoshimura', 'Kaneki'].includes(rcFormData.clan)) {
+      console.error('Validation failed: invalid clan for Ghoul:', rcFormData.clan);
       toast({
         title: "ข้อผิดพลาด",
         description: "ตระกูลไม่ถูกต้องสำหรับฝ่าย Ghoul โปรดเลือก Yoshimura หรือ Kaneki",
@@ -302,6 +317,8 @@ const Admin = () => {
         link: rcFormData.link,
         is_active: rcFormData.is_active
       };
+
+      console.log('Submitting new ID:', newIdData);
 
       const { error } = await supabase
         .from('set_id')
@@ -330,6 +347,8 @@ const Admin = () => {
         is_active: true
       });
 
+      console.log('Reset rcFormData after submit:', rcFormData);
+
       const { data } = await supabase
         .from('set_id')
         .select('*');
@@ -349,6 +368,7 @@ const Admin = () => {
     e.preventDefault();
 
     if (wipeFormData.faction === 'None') {
+      console.error('Validation failed: faction is None for wipe');
       toast({
         title: "ข้อผิดพลาด",
         description: "โปรดเลือกฝ่าย (CCG หรือ Ghoul)",
@@ -359,6 +379,7 @@ const Admin = () => {
     }
 
     if (!wipeFormData.count) {
+      console.error('Validation failed: count is empty for wipe');
       toast({
         title: "ข้อผิดพลาด",
         description: "โปรดกรอกจำนวน",
@@ -369,6 +390,7 @@ const Admin = () => {
     }
 
     if (wipeFormData.faction === 'Ghoul' && !['Yoshimura', 'Kaneki'].includes(wipeFormData.clan)) {
+      console.error('Validation failed: invalid clan for Ghoul wipe:', wipeFormData.clan);
       toast({
         title: "ข้อผิดพลาด",
         description: "ตระกูลไม่ถูกต้องสำหรับฝ่าย Ghoul โปรดเลือก Yoshimura หรือ Kaneki",
@@ -386,6 +408,8 @@ const Admin = () => {
         .eq('faction', wipeFormData.faction);
 
       if (checkError) throw checkError;
+
+      console.log('Checking existing clans:', existingClans);
 
       if (existingClans && existingClans.length > 0) {
         const { error: updateError } = await supabase
@@ -420,6 +444,8 @@ const Admin = () => {
         currentCount: parseInt(wipeFormData.count)
       });
 
+      console.log('Reset wipeFormData after submit:', wipeFormData);
+
       const { data } = await supabase
         .from('set_clan')
         .select('*');
@@ -437,6 +463,7 @@ const Admin = () => {
 
   const handleIdSelect = async (selectedId: string) => {
     try {
+      console.log('Selecting ID:', selectedId);
       const idToEdit = savedIds.find(id => id.id === selectedId);
 
       if (idToEdit) {
@@ -455,6 +482,7 @@ const Admin = () => {
           link: idToEdit.link || 'https://www.facebook.com/is.Moyx',
           is_active: idToEdit.is_active
         });
+        console.log('Selected ID data:', idToEdit);
       }
     } catch (error) {
       console.error('Error selecting ID:', error);
@@ -471,6 +499,7 @@ const Admin = () => {
     e.preventDefault();
 
     if (editFormData.faction === 'None') {
+      console.error('Validation failed: faction is None for edit');
       toast({
         title: "ข้อผิดพลาด",
         description: "โปรดเลือกฝ่าย (CCG หรือ Ghoul)",
@@ -481,6 +510,7 @@ const Admin = () => {
     }
 
     if (editFormData.faction === 'Ghoul' && !['Yoshimura', 'Kaneki'].includes(editFormData.clan)) {
+      console.error('Validation failed: invalid clan for Ghoul edit:', editFormData.clan);
       toast({
         title: "ข้อผิดพลาด",
         description: "ตระกูลไม่ถูกต้องสำหรับฝ่าย Ghoul โปรดเลือก Yoshimura หรือ Kaneki",
@@ -504,6 +534,8 @@ const Admin = () => {
         link: editFormData.link,
         is_active: editFormData.is_active
       };
+
+      console.log('Submitting updated ID:', updatedId);
 
       const { error } = await supabase
         .from('set_id')
@@ -538,6 +570,8 @@ const Admin = () => {
         link: '',
         is_active: true
       });
+
+      console.log('Reset editFormData after submit:', editFormData);
     } catch (error) {
       console.error('Error updating ID:', error);
       toast({
@@ -553,6 +587,7 @@ const Admin = () => {
     e.preventDefault();
 
     try {
+      console.log('Removing ID:', removeId);
       const { error } = await supabase
         .from('set_id')
         .delete()
@@ -572,6 +607,7 @@ const Admin = () => {
       if (data) setSavedIds(data);
 
       setRemoveId('');
+      console.log('Reset removeId after delete');
     } catch (error) {
       console.error('Error removing ID:', error);
       toast({
@@ -587,6 +623,7 @@ const Admin = () => {
     e.preventDefault();
 
     if (!rcManageData.rc || !rcManageData.price) {
+      console.error('Validation failed: rc or price is empty for RC manage');
       toast({
         title: "ข้อผิดพลาด",
         description: "โปรดกรอกค่า RC และราคาให้ครบถ้วน",
@@ -601,6 +638,8 @@ const Admin = () => {
         rc: rcManageData.rc,
         price: parseInt(rcManageData.price) || 0
       };
+
+      console.log('Submitting new RC:', newRcData);
 
       const { error } = await supabase
         .from('set_rc')
@@ -619,6 +658,8 @@ const Admin = () => {
         price: '',
       });
 
+      console.log('Reset rcManageData after submit');
+
       const { data } = await supabase
         .from('set_rc')
         .select('*');
@@ -636,6 +677,7 @@ const Admin = () => {
 
   const handleEditRcSelect = async (selectedId: string) => {
     try {
+      console.log('Selecting RC:', selectedId);
       const rcToEdit = savedRcItems.find(item => item.id === selectedId);
 
       if (rcToEdit) {
@@ -644,6 +686,7 @@ const Admin = () => {
           rc: rcToEdit.rc,
           price: rcToEdit.price.toString(),
         });
+        console.log('Selected RC data:', rcToEdit);
       }
     } catch (error) {
       console.error('Error selecting RC:', error);
@@ -660,6 +703,7 @@ const Admin = () => {
     e.preventDefault();
 
     if (!editRcData.rc || !editRcData.price) {
+      console.error('Validation failed: rc or price is empty for RC edit');
       toast({
         title: "ข้อผิดพลาด",
         description: "โปรดกรอกค่า RC และราคาให้ครบถ้วน",
@@ -674,6 +718,8 @@ const Admin = () => {
         rc: editRcData.rc,
         price: parseInt(editRcData.price) || 0,
       };
+
+      console.log('Submitting updated RC:', updatedRc);
 
       const { error } = await supabase
         .from('set_rc')
@@ -698,6 +744,8 @@ const Admin = () => {
         rc: '',
         price: '',
       });
+
+      console.log('Reset editRcData after submit');
     } catch (error) {
       console.error('Error updating RC:', error);
       toast({
@@ -713,6 +761,7 @@ const Admin = () => {
     e.preventDefault();
 
     try {
+      console.log('Removing RC:', removeRcId);
       const { error } = await supabase
         .from('set_rc')
         .delete()
@@ -732,6 +781,7 @@ const Admin = () => {
       if (data) setSavedRcItems(data);
 
       setRemoveRcId('');
+      console.log('Reset removeRcId after delete');
     } catch (error) {
       console.error('Error removing RC:', error);
       toast({
@@ -744,6 +794,7 @@ const Admin = () => {
   };
 
   const handleLogout = () => {
+    console.log('Logging out user');
     logout();
     navigate('/', { replace: true });
   };
@@ -757,6 +808,7 @@ const Admin = () => {
   }
 
   if (!isAuthenticated) {
+    console.log('User not authenticated, redirecting to /admin-auth');
     return <Navigate to="/admin-auth" replace />;
   }
 
@@ -827,7 +879,10 @@ const Admin = () => {
                       <Label htmlFor="rc-faction">ฝ่าย</Label>
                       <Select
                         value={rcFormData.faction}
-                        onValueChange={(val) => handleFactionChange(val, 'add')}
+                        onValueChange={(val) => {
+                          console.log('Faction selected:', val);
+                          handleFactionChange(val, 'add');
+                        }}
                       >
                         <SelectTrigger className="glass-input border-pink-300/30">
                           <SelectValue placeholder="เลือกฝ่าย" />
@@ -1001,7 +1056,10 @@ const Admin = () => {
                     <Label htmlFor="wipe-faction">ฝ่าย</Label>
                     <Select
                       value={wipeFormData.faction}
-                      onValueChange={(val) => handleFactionChange(val, 'wipe')}
+                      onValueChange={(val) => {
+                        console.log('Faction selected for wipe:', val);
+                        handleFactionChange(val, 'wipe');
+                      }}
                     >
                       <SelectTrigger className="glass-input border-pink-300/30">
                         <SelectValue placeholder="เลือกฝ่าย" />
@@ -1098,7 +1156,10 @@ const Admin = () => {
                           <Label htmlFor="edit-faction">ฝ่าย</Label>
                           <Select
                             value={editFormData.faction}
-                            onValueChange={(val) => handleFactionChange(val, 'edit')}
+                            onValueChange={(val) => {
+                              console.log('Faction selected for edit:', val);
+                              handleFactionChange(val, 'edit');
+                            }}
                           >
                             <SelectTrigger className="glass-input border-pink-300/30">
                               <SelectValue placeholder="เลือกฝ่าย" />
