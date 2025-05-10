@@ -309,7 +309,7 @@ const Admin = () => {
     e.preventDefault();
     console.log('handleRcSubmit called');
 
-    if (rcFormData.faction === 'None') {
+    if (factionAdd === 'None') {
       console.error('Validation failed: faction is None');
       toast({
         title: "ข้อผิดพลาด",
@@ -320,7 +320,7 @@ const Admin = () => {
       return;
     }
 
-    if (rcFormData.faction === 'Ghoul' && !['Yoshimura', 'Kaneki'].includes(rcFormData.clan)) {
+    if (factionAdd === 'Ghoul' && !['Yoshimura', 'Kaneki'].includes(rcFormData.clan)) {
       console.error('Validation failed: invalid clan for Ghoul:', rcFormData.clan);
       toast({
         title: "ข้อผิดพลาด",
@@ -938,16 +938,15 @@ const Admin = () => {
                     <div className="space-y-2">
                       <Label htmlFor="rc-clan">ตระกูล</Label>
                       <Select
-                        key={rcFormData.faction}
                         value={rcFormData.clan}
                         onValueChange={(val) => handleClanChange(val, 'add')}
-                        disabled={rcFormData.faction === 'None'}
+                        disabled={factionAdd === 'None'}
                       >
                         <SelectTrigger className="glass-input border-pink-300/30">
                           <SelectValue placeholder="เลือกตระกูล" />
                         </SelectTrigger>
                         <SelectContent>
-                          {rcFormData.faction !== 'None' && clans[rcFormData.faction as keyof typeof clans]?.map((clan) => (
+                          {factionAdd !== 'None' && clans[factionAdd as keyof typeof clans]?.map((clan) => (
                             <SelectItem key={clan} value={clan}>{clan}</SelectItem>
                           ))}
                         </SelectContent>
@@ -979,7 +978,7 @@ const Admin = () => {
                           <SelectValue placeholder="เลือกอันดับ" />
                         </SelectTrigger>
                         <SelectContent>
-                          {rcFormData.faction === 'CCG' ? (
+                          {factionAdd === 'CCG' ? (
                             ccgRanks.map((rank) => (
                               <SelectItem key={rank} value={rank}>{rank}</SelectItem>
                             ))
@@ -1121,7 +1120,6 @@ const Admin = () => {
                   <div className="space-y-2">
                     <Label htmlFor="wipe-clan">ตระกูล</Label>
                     <Select
-                      key={wipeFormData.faction}
                       value={wipeFormData.clan}
                       onValueChange={(val) => handleClanChange(val, 'wipe')}
                       disabled={wipeFormData.faction === 'None'}
@@ -1224,7 +1222,6 @@ const Admin = () => {
                         <div className="space-y-2">
                           <Label htmlFor="edit-clan">ตระกูล</Label>
                           <Select
-                            key={editFormData.faction}
                             value={editFormData.clan}
                             onValueChange={(val) => handleClanChange(val, 'edit')}
                             disabled={editFormData.faction === 'None'}
