@@ -2,7 +2,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encode as base64Encode } from "https://deno.land/std@0.177.0/encoding/base64.ts";
-import * as crypto from "https://deno.land/std@0.177.0/crypto/mod.ts";
 
 // Constants
 const EXPIRY_TIME_MINUTES = 5;
@@ -104,6 +103,7 @@ async function storeAuthKey(supabase: any, key: string, deviceFingerprint: strin
     }]);
     
   if (error) {
+    console.error("Database error:", error);
     throw new Error(`Failed to store auth key: ${error.message}`);
   }
   
@@ -222,9 +222,27 @@ serve(async (req) => {
   const path = url.pathname.split("/").pop();
   
   try {
+    console.log("Request path:", path);
+    console.log("Request method:", req.method);
+    
     // Request authentication key
     if (path === "request-key" && req.method === "POST") {
-      const { deviceFingerprint } = await req.json();
+      console.log("Processing request-key endpoint");
+      let reqBody;
+      try {
+        reqBody = await req.json();
+      } catch (e) {
+        console.error("Failed to parse request body:", e);
+        throw new Error("Invalid request body");
+      }
+      
+      const { deviceFingerprint } = reqBody;
+      
+      if (!deviceFingerprint) {
+        throw new Error("Missing deviceFingerprint");
+      }
+      
+      console.log("Device fingerprint:", deviceFingerprint);
       
       // Generate a secure key
       const key = await generateAuthKey();
@@ -428,6 +446,7 @@ serve(async (req) => {
       }
     );
   } catch (error: any) {
+    console.error("Error processing request:", error);
     return new Response(
       JSON.stringify({
         success: false,

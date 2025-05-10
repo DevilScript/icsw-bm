@@ -103,11 +103,11 @@ const AdminAuth = () => {
   
   // CSP setup (Content Security Policy)
   useEffect(() => {
-    // This would ideally be in meta tags and server headers
     // For demo purposes, we'll just add a meta tag dynamically
+    // This is a more permissive CSP that allows SVG data URLs
     const metaCSP = document.createElement('meta');
     metaCSP.httpEquiv = 'Content-Security-Policy';
-    metaCSP.content = "default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline'; connect-src *;";
+    metaCSP.content = "default-src 'self'; img-src 'self' data:; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline'; connect-src *;";
     document.head.appendChild(metaCSP);
     
     return () => {
@@ -155,6 +155,7 @@ const AdminAuth = () => {
       
       setAuthStep('verification');
     } catch (error: any) {
+      console.error("API Error:", error);
       toast({
         title: "เกิดข้อผิดพลาด",
         description: error.message || "ไม่สามารถสร้างรหัสยืนยันตัวตนได้ โปรดลองอีกครั้ง",
@@ -333,7 +334,6 @@ const AdminAuth = () => {
   // Generate a CSRF token
   const generateCSRFToken = (): string => {
     const array = new Uint8Array(16);
-    // Use window.crypto for Web Crypto API
     window.crypto.getRandomValues(array);
     return Array.from(array, byte => ('0' + byte.toString(16)).slice(-2)).join('');
   };

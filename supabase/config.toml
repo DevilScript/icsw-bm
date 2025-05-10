@@ -1,5 +1,16 @@
 
 project_id = "tnwgtlyuabpmxsqiyjof"
 
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "auth"]
+
+[db]
+port = 54322
+
+[studio]
+port = 54323
+
 [functions.admin-auth]
 verify_jwt = false
