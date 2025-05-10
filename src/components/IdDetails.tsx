@@ -127,7 +127,7 @@ const IdDetails = () => {
               )}
               <div className="relative z-20 mb-4">
                 <h3 className={`text-xl font-semibold ${data.is_sold_out ? 'text-red-400' : 'text-white'}`}>
-                  {data.game_id}
+                  {data.is_sold_out ? '❌' : data.game_id}
                 </h3>
               </div>
 
@@ -192,8 +192,8 @@ const IdDetails = () => {
               </div>
             </GlassCard>
             {data.is_sold_out && (
-              <div className="absolute bottom-[-24px] right-[-10px] w-[50%] h-6 bg-glass-dark/30 text-red-400 text-xs font-medium flex items-center justify-center backdrop-blur-md border border-pink-300/20 shadow-lg shadow-pink-500/10 rounded-md animate-ribbon-slide z-20">
-                THIS ID IS SOLD OUT
+              <div className="absolute bottom-[-24px] left-1/2 transform -translate-x-1/2 w-[60%] h-6 bg-glass-dark/30 text-red-400 text-xs font-medium flex items-center justify-center backdrop-blur-md border border-pink-300/20 shadow-lg shadow-pink-500/10 rounded-md animate-ribbon-slide z-20">
+                SOLD OUT
               </div>
             )}
           </div>
