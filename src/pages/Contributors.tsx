@@ -5,16 +5,16 @@ import { useLocation } from 'react-router-dom';
 
 const Contributors = () => {
   const location = useLocation();
-  const imageSrc = '/images/s.jpg'; 
-  const fallbackSrc = '/images/sback.jpg'; 
+  const imageSrc = '/images/s.jpg'; // Primary image in public/images/
+  const fallbackSrc = '/images/sback.jpg'; // Fallback image in public/images/
 
+  // Preload primary image to ensure it loads reliably
   useEffect(() => {
     const preloadImage = () => {
       const img = new Image();
       img.src = imageSrc;
       img.onerror = () => {
-        console.error('Failed to preload image:', imageSrc);
-        console.log('Will use fallback image');
+        console.error('Failed to preload primary image:', imageSrc);
       };
     };
     preloadImage();
@@ -61,11 +61,9 @@ const Contributors = () => {
                 src={imageSrc}
                 alt="Mo Profile"
                 className="w-32 h-32 rounded-full object-cover z-10 relative"
-                onLoad={() => console.log('Profile image loaded:', imageSrc)}
                 onError={(e) => {
                   console.error('Failed to load profile image:', e.currentTarget.src);
                   e.currentTarget.src = fallbackSrc; // CSP-compliant fallback
-                  console.log('Switched to fallback image:', fallbackSrc);
                 }}
               />
               <div className="profile-glow-effect"></div>
