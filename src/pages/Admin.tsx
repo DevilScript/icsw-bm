@@ -213,12 +213,12 @@ const Admin = () => {
     let newKagune = '';
     
     if (faction === 'CCG') {
-      newClan = formType === 'add' && clans.CCG.includes(rcFormData.clan) ? rcFormData.clan :
+      newClan = formType === 'add' ? 'Arima' :
                 formType === 'edit' && clans.CCG.includes(editFormData.clan) ? editFormData.clan :
                 formType === 'wipe' && clans.CCG.includes(wipeFormData.clan) ? wipeFormData.clan : 'Arima';
       newKagune = '';
     } else if (faction === 'Ghoul') {
-      newClan = formType === 'add' && clans.Ghoul.includes(rcFormData.clan) ? rcFormData.clan :
+      newClan = formType === 'add' ? 'Yoshimura' :
                 formType === 'edit' && clans.Ghoul.includes(editFormData.clan) ? editFormData.clan :
                 formType === 'wipe' && clans.Ghoul.includes(wipeFormData.clan) ? wipeFormData.clan : 'Yoshimura';
       newKagune = '';
@@ -230,41 +230,39 @@ const Admin = () => {
     console.log(`New values: clan=${newClan}, kagune=${newKagune}, rank=${faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0]}`);
 
     if (formType === 'add') {
-      setRcFormData(prev => {
-        const newState = {
-          ...prev,
-          faction,
-          clan: newClan,
-          kagune: newKagune,
-          rank: faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0]
-        };
-        console.log('Updated rcFormData:', newState);
-        return newState;
+      setRcFormData({
+        game_id: '',
+        clan: newClan,
+        faction,
+        kagune: newKagune,
+        is_kagune_v2: false,
+        is_sold_out: false,
+        rank: faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0],
+        rc: '',
+        gp: '',
+        price: '',
+        link: 'https://www.facebook.com/is.Moyx',
+        is_active: true
       });
+      console.log('Updated rcFormData:', { faction, clan: newClan, kagune: newKagune, rank: faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0] });
     } else if (formType === 'edit') {
-      setEditFormData(prev => {
-        const newState = {
-          ...prev,
-          faction,
-          clan: newClan,
-          kagune: newKagune,
-          rank: faction === 'CCG' ? ccgRanks[0] : prev.rank || ghoulRanks[0]
-        };
-        console.log('Updated editFormData:', newState);
-        return newState;
-      });
+      setEditFormData(prev => ({
+        ...prev,
+        faction,
+        clan: newClan,
+        kagune: newKagune,
+        rank: faction === 'CCG' ? ccgRanks[0] : prev.rank || ghoulRanks[0]
+      }));
+      console.log('Updated editFormData:', { faction, clan: newClan, kagune: newKagune, rank: faction === 'CCG' ? ccgRanks[0] : editFormData.rank || ghoulRanks[0] });
     } else if (formType === 'wipe') {
       const currentClan = savedClans.find(c => c.clan === newClan && c.faction === faction);
-      setWipeFormData(prev => {
-        const newState = {
-          ...prev,
-          faction,
-          clan: newClan,
-          currentCount: currentClan ? currentClan.count : 0
-        };
-        console.log('Updated wipeFormData:', newState);
-        return newState;
-      });
+      setWipeFormData(prev => ({
+        ...prev,
+        faction,
+        clan: newClan,
+        currentCount: currentClan ? currentClan.count : 0
+      }));
+      console.log('Updated wipeFormData:', { faction, clan: newClan, currentCount: currentClan ? currentClan.count : 0 });
     }
   };
 
@@ -352,12 +350,12 @@ const Admin = () => {
 
       setRcFormData({
         game_id: '',
-        clan: rcFormData.clan,
-        faction: rcFormData.faction,
+        clan: '',
+        faction: 'None',
         kagune: '',
         is_kagune_v2: false,
         is_sold_out: false,
-        rank: rcFormData.faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0],
+        rank: 'A',
         rc: '',
         gp: '',
         price: '',
@@ -576,12 +574,12 @@ const Admin = () => {
       setEditFormData({
         selectedId: '',
         game_id: '',
-        clan: editFormData.clan,
-        faction: editFormData.faction,
+        clan: '',
+        faction: 'None',
         kagune: '',
         is_kagune_v2: false,
         is_sold_out: false,
-        rank: editFormData.faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0],
+        rank: '',
         rc: '',
         gp: '',
         price: '',
@@ -1138,7 +1136,7 @@ const Admin = () => {
             </TabsContent>
 
             <TabsContent value="edit-id" className="mt-0">
-              <GlassCard className="border border-pink-300/30 shadow-md">
+              <GlassCard className="border border-pink-Workbook 300/30 shadow-md">
                 <form onSubmit={handleEditSubmit} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="edit-select-id">เลือก ID เพื่อแก้ไข</Label>
