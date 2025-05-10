@@ -167,7 +167,7 @@ const IdDetails = () => {
 
             <div className="relative z-20 flex justify-between items-center mt-4 gap-4">
               {data.is_sold_out ? (
-                <span className="flex items-center gap-1 text-red-400 font-medium text-sm">
+                <span className="flex items-center gap-1.5 text-red-400 font-medium text-sm">
                   <Lock className="w-4 h-4" />
                   SOLD OUT
                 </span>
