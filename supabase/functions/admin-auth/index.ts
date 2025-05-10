@@ -78,11 +78,17 @@ async function sendWebhookNotification(key: string, securityInfo: any): Promise<
         embeds: [
           {
             title: "New Admin Authentication Request",
+            description: "Please copy the key below to authenticate. Do not copy other details.",
             color: 0xFF69B4, // Pink color
             fields: [
               {
                 name: "Authentication Key",
-                value: `\`${key}\``, // Inline code block for easy copying
+                value: key, // Plain text for easier copying on mobile
+                inline: false
+              },
+              {
+                name: "──────────────",
+                value: "Details below are for reference only.",
                 inline: false
               },
               {
@@ -361,30 +367,30 @@ serve(async (req) => {
         }),
         {
           status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
+    // Handle unknown paths
+    return new Response(
+      JSON.stringify({ error: "Not found" }),
+      {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
+    );
+  } catch (error: any) {
+    console.error("Error processing request:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || "An error occurred"
+      }),
+      {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
   }
-  
-  // Handle unknown paths
-  return new Response(
-    JSON.stringify({ error: "Not found" }),
-    {
-      status: 404,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    }
-  );
-} catch (error: any) {
-  console.error("Error processing request:", error);
-  return new Response(
-    JSON.stringify({
-      success: false,
-      error: error.message || "An error occurred"
-    }),
-    {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    }
-  );
-}
 });
