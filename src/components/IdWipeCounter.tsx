@@ -1,4 +1,3 @@
-
 import React from 'react';
 import GlassCard from './GlassCard';
 import CountBadge from './CountBadge';
@@ -80,7 +79,11 @@ const IdWipeCounter = ({ data, loading = false }: IdWipeCounterProps) => {
                   <span className="text-glass-light text-sm">Available:</span>
                   <CountBadge 
                     count={item.count} 
-                    className={`bg-pink-300/20 ${item.count === 0 ? 'text-red-500' : 'text-green-300'} border border-pink-300/30 animate-pulse-grow`} 
+                    className={`bg-pink-300/20 border border-pink-300/30 animate-pulse-grow ${
+                      item.count === 0 ? 'text-red-500' : 
+                      item.count === 1 ? 'text-yellow-200' : 
+                      'text-green-300'
+                    }`} 
                   />
                 </div>
               </div>
