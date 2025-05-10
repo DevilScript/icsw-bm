@@ -123,7 +123,7 @@ const IdDetails = () => {
               }`}
             >
               {data.is_sold_out && (
-                <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm rounded-lg pointer-events-none z-10"></div>
+                <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-md rounded-xl pointer-events-none z-10"></div>
               )}
               <div className="relative z-20 mb-4">
                 <h3 className={`text-xl font-semibold ${data.is_sold_out ? 'text-red-400' : 'text-white'}`}>
@@ -167,10 +167,7 @@ const IdDetails = () => {
 
               <div className="relative z-20 flex justify-between items-center mt-4 gap-4">
                 {data.is_sold_out ? (
-                  <span className="text-red-400 font-medium text-sm flex items-center">
-                    <Lock className="w-4 h-4 mr-1" />
-                    This ID is sold out
-                  </span>
+                  <Lock className="w-4 h-4 text-red-400" />
                 ) : data.link && isValidUrl(data.link) ? (
                   <a
                     href={data.link}
@@ -195,7 +192,7 @@ const IdDetails = () => {
               </div>
             </GlassCard>
             {data.is_sold_out && (
-              <div className="absolute bottom-[-24px] right-[-10px] w-[50%] h-6 bg-red-500/80 text-white text-xs font-medium flex items-center justify-center backdrop-blur-sm border border-red-500/30 shadow-md shadow-red-500/20 animate-ribbon-slide z-20">
+              <div className="absolute bottom-[-24px] right-[-10px] w-[50%] h-6 bg-glass-dark/30 text-red-400 text-xs font-medium flex items-center justify-center backdrop-blur-md border border-pink-300/20 shadow-lg shadow-pink-500/10 rounded-md animate-ribbon-slide z-20">
                 THIS ID IS SOLD OUT
               </div>
             )}

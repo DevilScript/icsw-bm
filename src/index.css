@@ -170,3 +170,27 @@
 .animate-pulse-grow {
   animation: pulse-grow 2s ease-in-out infinite;
 }
+
+@keyframes slide-in {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ribbon-slide {
+  0% { opacity: 0; transform: translateX(20px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes ribbon-bounce {
+  0% { transform: scale(0.98); }
+  50% { transform: scale(1); }
+  100% { transform: scale(0.98); }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.5s ease-out;
+}
+
+.animate-ribbon-slide {
+  animation: ribbon-slide 0.5s ease-out forwards, ribbon-bounce 3s infinite ease-in-out;
+}
