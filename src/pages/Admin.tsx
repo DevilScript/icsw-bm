@@ -207,16 +207,16 @@ const Admin = () => {
   const handleFactionChange = (faction: string, formType: 'add' | 'edit' | 'wipe') => {
     let newClan = '';
     let newKagune = '';
-
+    
     if (faction === 'CCG') {
-      newClan = formType === 'add' ? 'Arima' :
-                formType === 'edit' ? editFormData.clan || 'Arima' :
-                formType === 'wipe' ? wipeFormData.clan || 'Arima' : 'Arima';
+      newClan = formType === 'add' && clans.CCG.includes(rcFormData.clan) ? rcFormData.clan :
+                formType === 'edit' && clans.CCG.includes(editFormData.clan) ? editFormData.clan :
+                formType === 'wipe' && clans.CCG.includes(wipeFormData.clan) ? wipeFormData.clan : 'Arima';
       newKagune = '';
     } else if (faction === 'Ghoul') {
-      newClan = formType === 'add' ? 'Yoshimura' :
-                formType === 'edit' ? editFormData.clan || 'Yoshimura' :
-                formType === 'wipe' ? wipeFormData.clan || 'Yoshimura' : 'Yoshimura';
+      newClan = formType === 'add' && clans.Ghoul.includes(rcFormData.clan) ? rcFormData.clan :
+                formType === 'edit' && clans.Ghoul.includes(editFormData.clan) ? editFormData.clan :
+                formType === 'wipe' && clans.Ghoul.includes(wipeFormData.clan) ? wipeFormData.clan : 'Yoshimura';
       newKagune = '';
     } else {
       newClan = '';
@@ -826,7 +826,6 @@ const Admin = () => {
                     <div className="space-y-2">
                       <Label htmlFor="rc-faction">ฝ่าย</Label>
                       <Select
-                        key={rcFormData.faction}
                         value={rcFormData.faction}
                         onValueChange={(val) => handleFactionChange(val, 'add')}
                       >
@@ -1098,7 +1097,6 @@ const Admin = () => {
                         <div className="space-y-2">
                           <Label htmlFor="edit-faction">ฝ่าย</Label>
                           <Select
-                            key={editFormData.faction}
                             value={editFormData.faction}
                             onValueChange={(val) => handleFactionChange(val, 'edit')}
                           >
@@ -1233,7 +1231,7 @@ const Admin = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <Label OPS htmlFor="edit-price">ราคา ($)</Label>
+                          <Label htmlFor="edit-price">ราคา ($)</Label>
                           <Input
                             id="edit-price"
                             type="number"
@@ -1312,7 +1310,7 @@ const Admin = () => {
                       <Input
                         id="add-rc"
                         placeholder="กรอกค่า RC"
-                        className="glass-inputshal border-pink-300/30 focus:border-pink-300/50"
+                        className="glass-input border-pink-300/30 focus:border-pink-300/50"
                         value={rcManageData.rc}
                         onChange={(e) => setRcManageData({...rcManageData, rc: e.target.value})}
                         required
