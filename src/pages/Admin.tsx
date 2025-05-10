@@ -230,51 +230,69 @@ const Admin = () => {
     console.log(`New values: clan=${newClan}, kagune=${newKagune}, rank=${faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0]}`);
 
     if (formType === 'add') {
-      setRcFormData({
-        ...rcFormData,
-        faction,
-        clan: newClan,
-        kagune: newKagune,
-        rank: faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0]
+      setRcFormData(prev => {
+        const newState = {
+          ...prev,
+          faction,
+          clan: newClan,
+          kagune: newKagune,
+          rank: faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0]
+        };
+        console.log('Updated rcFormData:', newState);
+        return newState;
       });
-      console.log('Updated rcFormData:', { faction, clan: newClan, kagune: newKagune, rank: faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0] });
     } else if (formType === 'edit') {
-      setEditFormData({
-        ...editFormData,
-        faction,
-        clan: newClan,
-        kagune: newKagune,
-        rank: faction === 'CCG' ? ccgRanks[0] : editFormData.rank || ghoulRanks[0]
+      setEditFormData(prev => {
+        const newState = {
+          ...prev,
+          faction,
+          clan: newClan,
+          kagune: newKagune,
+          rank: faction === 'CCG' ? ccgRanks[0] : prev.rank || ghoulRanks[0]
+        };
+        console.log('Updated editFormData:', newState);
+        return newState;
       });
-      console.log('Updated editFormData:', { faction, clan: newClan, kagune: newKagune, rank: faction === 'CCG' ? ccgRanks[0] : editFormData.rank || ghoulRanks[0] });
     } else if (formType === 'wipe') {
       const currentClan = savedClans.find(c => c.clan === newClan && c.faction === faction);
-      setWipeFormData({
-        ...wipeFormData,
-        faction,
-        clan: newClan,
-        currentCount: currentClan ? currentClan.count : 0
+      setWipeFormData(prev => {
+        const newState = {
+          ...prev,
+          faction,
+          clan: newClan,
+          currentCount: currentClan ? currentClan.count : 0
+        };
+        console.log('Updated wipeFormData:', newState);
+        return newState;
       });
-      console.log('Updated wipeFormData:', { faction, clan: newClan, currentCount: currentClan ? currentClan.count : 0 });
     }
   };
 
   const handleClanChange = (clan: string, formType: 'add' | 'edit' | 'wipe') => {
     console.log(`handleClanChange called: clan=${clan}, formType=${formType}`);
     if (formType === 'add') {
-      setRcFormData({ ...rcFormData, clan });
-      console.log('Updated rcFormData clan:', clan);
+      setRcFormData(prev => {
+        const newState = { ...prev, clan };
+        console.log('Updated rcFormData clan:', newState);
+        return newState;
+      });
     } else if (formType === 'edit') {
-      setEditFormData({ ...editFormData, clan });
-      console.log('Updated editFormData clan:', clan);
+      setEditFormData(prev => {
+        const newState = { ...prev, clan };
+        console.log('Updated editFormData clan:', newState);
+        return newState;
+      });
     } else if (formType === 'wipe') {
       const currentClan = savedClans.find(c => c.clan === clan && c.faction === wipeFormData.faction);
-      setWipeFormData({
-        ...wipeFormData,
-        clan,
-        currentCount: currentClan ? currentClan.count : 0
+      setWipeFormData(prev => {
+        const newState = {
+          ...prev,
+          clan,
+          currentCount: currentClan ? currentClan.count : 0
+        };
+        console.log('Updated wipeFormData clan:', newState);
+        return newState;
       });
-      console.log('Updated wipeFormData clan:', { clan, currentCount: currentClan ? currentClan.count : 0 });
     }
   };
 
@@ -878,9 +896,10 @@ const Admin = () => {
                     <div className="space-y-2">
                       <Label htmlFor="rc-faction">ฝ่าย</Label>
                       <Select
+                        key={rcFormData.faction}
                         value={rcFormData.faction}
                         onValueChange={(val) => {
-                          console.log('Faction selected:', val);
+                          console.log('Faction selected for add:', val);
                           handleFactionChange(val, 'add');
                         }}
                       >
@@ -1155,6 +1174,7 @@ const Admin = () => {
                         <div className="space-y-2">
                           <Label htmlFor="edit-faction">ฝ่าย</Label>
                           <Select
+                            key={editFormData.faction}
                             value={editFormData.faction}
                             onValueChange={(val) => {
                               console.log('Faction selected for edit:', val);
