@@ -835,6 +835,9 @@ const Admin = () => {
     Ghoul: ['Yoshimura', 'Kaneki']
   };
 
+  console.log('Rendering with rcFormData.faction:', rcFormData.faction);
+  console.log('Rendering with editFormData.faction:', editFormData.faction);
+
   return (
     <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-glass-dark">
       <div className="max-w-4xl mx-auto">
@@ -896,7 +899,7 @@ const Admin = () => {
                     <div className="space-y-2">
                       <Label htmlFor="rc-faction">ฝ่าย</Label>
                       <Select
-                        key={rcFormData.faction}
+                        defaultValue="None"
                         value={rcFormData.faction}
                         onValueChange={(val) => {
                           console.log('Faction selected for add:', val);
@@ -1074,6 +1077,7 @@ const Admin = () => {
                   <div className="space-y-2">
                     <Label htmlFor="wipe-faction">ฝ่าย</Label>
                     <Select
+                      defaultValue="None"
                       value={wipeFormData.faction}
                       onValueChange={(val) => {
                         console.log('Faction selected for wipe:', val);
@@ -1174,7 +1178,7 @@ const Admin = () => {
                         <div className="space-y-2">
                           <Label htmlFor="edit-faction">ฝ่าย</Label>
                           <Select
-                            key={editFormData.faction}
+                            defaultValue="None"
                             value={editFormData.faction}
                             onValueChange={(val) => {
                               console.log('Faction selected for edit:', val);
