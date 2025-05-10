@@ -6,9 +6,9 @@ import { useLocation } from 'react-router-dom';
 const Contributors = () => {
   const location = useLocation();
   const [imageSrc, setImageSrc] = useState('https://i.imgur.com/wjLMuWQ.jpeg');
-  const fallbackSrc = 'https://via.placeholder.com/150';
+  const fallbackSrc = '/images/fallback-profile.png'; // Must exist in public/images/
 
-  // Preload image with faster retry and immediate fallback
+  // Preload image with retry and CSP-compliant fallback
   useEffect(() => {
     let retries = 2;
     const preloadImage = () => {
@@ -71,14 +71,14 @@ const Contributors = () => {
           <div className="flex flex-col items-center">
             <div className="profile-container relative w-32 h-32 mb-4 overflow-visible transform hover:scale-105 transition-all duration-300">
               <img
-                src={`${imageSrc}?t=${Date.now()}`}
-                alt="Mo Profile"
+                src={imageSrc}
+                alt="Profile"
                 className="w-32 h-32 rounded-full object-cover z-10 relative"
                 onLoad={() => console.log('Profile image loaded:', imageSrc)}
                 onError={(e) => {
                   console.error('Failed to load profile image:', e.currentTarget.src);
-                  e.currentTarget.src = fallbackSrc; // Immediate fallback
-                  setImageSrc(fallbackSrc); // Update state
+                  e.currentTarget.src = fallbackSrc; // CSP-compliant fallback
+                  setImageSrc(fallbackSrc);
                 }}
               />
               <div className="profile-glow-effect"></div>
