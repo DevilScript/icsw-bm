@@ -13,10 +13,10 @@ export type Database = {
         Row: {
           auth_key: string
           created_at: string
-          device_fingerprint: string | null
+          device_fingerprint: string
           expires_at: string
           id: string
-          ip_address: string | null
+          ip_address: string
           key_hash: string
           nonce: string
           used: boolean
@@ -24,10 +24,10 @@ export type Database = {
         Insert: {
           auth_key: string
           created_at?: string
-          device_fingerprint?: string | null
+          device_fingerprint: string
           expires_at: string
           id?: string
-          ip_address?: string | null
+          ip_address: string
           key_hash: string
           nonce: string
           used?: boolean
@@ -35,10 +35,10 @@ export type Database = {
         Update: {
           auth_key?: string
           created_at?: string
-          device_fingerprint?: string | null
+          device_fingerprint?: string
           expires_at?: string
           id?: string
-          ip_address?: string | null
+          ip_address?: string
           key_hash?: string
           nonce?: string
           used?: boolean
@@ -51,30 +51,30 @@ export type Database = {
           device_fingerprint: string
           expires_at: string
           id: string
-          ip_address: string | null
+          ip_address: string
           last_active: string
           session_token: string
-          user_agent: string | null
+          user_agent: string
         }
         Insert: {
           created_at?: string
           device_fingerprint: string
           expires_at: string
           id?: string
-          ip_address?: string | null
+          ip_address: string
           last_active?: string
           session_token: string
-          user_agent?: string | null
+          user_agent: string
         }
         Update: {
           created_at?: string
           device_fingerprint?: string
           expires_at?: string
           id?: string
-          ip_address?: string | null
+          ip_address?: string
           last_active?: string
           session_token?: string
-          user_agent?: string | null
+          user_agent?: string
         }
         Relationships: []
       }
@@ -212,10 +212,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cleanup_expired_auth_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
