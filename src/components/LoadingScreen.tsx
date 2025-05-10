@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-const LoadingScreen: React.FC = () => {
+interface LoadingScreenProps {
+  onLoaded?: () => void;
+}
+
+const LoadingScreen: React.FC<LoadingScreenProps> = ({ onLoaded }) => {
   const [progress, setProgress] = useState<number>(0);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
 
   useEffect(() => {
     const loadResources = async () => {
       try {
-        // Simulate loading data from Supabase
         const promises = [
           supabase.from('set_id').select('count').limit(1),
           supabase.from('set_rc').select('count').limit(1),
@@ -16,7 +19,6 @@ const LoadingScreen: React.FC = () => {
           new Promise(resolve => setTimeout(resolve, 500)),
         ];
 
-        // Update progress as promises resolve
         let completed = 0;
         const totalTasks = promises.length;
 
@@ -29,9 +31,9 @@ const LoadingScreen: React.FC = () => {
 
         await Promise.all(progressPromises);
 
-        // Small delay before hiding the loading screen
         setTimeout(() => {
           setIsLoaded(true);
+          if (onLoaded) onLoaded();
           setTimeout(() => {
             document.body.style.overflow = 'auto';
           }, 1000);
@@ -40,26 +42,26 @@ const LoadingScreen: React.FC = () => {
         console.error('Error loading resources:', error);
         setTimeout(() => {
           setIsLoaded(true);
+          if (onLoaded) onLoaded();
           document.body.style.overflow = 'auto';
-        }, 2000);
+        }, 1000);
       }
     };
 
     document.body.style.overflow = 'hidden';
     loadResources();
 
-    // Cleanup to ensure body style is reset
     return () => {
       document.body.style.overflow = 'auto';
     };
-  }, []);
+  }, [onLoaded]);
 
   return (
     <div
       className={`fixed inset-0 w-full h-full bg-black z-[9999] flex flex-col justify-center items-center transition-opacity duration-1000 ${
         isLoaded ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
-      style={{ display: isLoaded ? 'none' : 'flex' }} // Ensure hidden when loaded
+      style={{ display: isLoaded ? 'none' : 'flex' }}
     >
       <div className="text-center">
         <div className="flex items-center justify-center mb-8">
