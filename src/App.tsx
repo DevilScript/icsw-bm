@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
+import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import AdminAuth from "./components/AdminAuth";
@@ -15,41 +17,44 @@ import LoadingScreen from './components/LoadingScreen';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000,
-      retry: 1,
+      refetchOnWindowFocus: false, // Improve performance by preventing refetch on window focus
+      staleTime: 5 * 60 * 1000, // 5 minutes of cache freshness
+      retry: 1, // Only retry once on failure
     },
   },
 });
 
 const App = () => {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-
-  const handleLoaded = () => {
-    setIsInitialLoad(false);
-  };
-
+  
+  useEffect(() => {
+    // After an appropriate amount of time, mark the initial load as complete
+    const timer = setTimeout(() => {
+      setIsInitialLoad(false);
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
+          <Toaster />
           <Sonner />
-          {isInitialLoad ? (
-            <LoadingScreen onLoaded={handleLoaded} />
-          ) : (
-            <BrowserRouter>
-              <Navbar />
-              <div className="pt-16">
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/contributors" element={<Contributors />} />
-                  <Route path="/admin" element={<Admin />} />
-                  <Route path="/admin-auth" element={<AdminAuth />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </div>
-            </BrowserRouter>
-          )}
+          {isInitialLoad && <LoadingScreen />}
+          <BrowserRouter>
+            <Navbar />
+            <div className="pt-16"> {/* Add padding for fixed navbar */}
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/contributors" element={<Contributors />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/admin-auth" element={<AdminAuth />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </div>
+          </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
