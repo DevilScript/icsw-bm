@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encode as base64Encode } from "https://deno.land/std@0.177.0/encoding/base64.ts";
@@ -76,7 +75,25 @@ async function sendWebhookNotification(key: string, securityInfo: any): Promise<
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        content: `New Admin Authentication Request\nKey: ${key}\n\n\nVerification Data: ${JSON.stringify(securityInfo)}\nTimestamp: ${new Date().toLocaleString()}`,
+        embeds: [
+          {
+            title: "New Admin Authentication Request",
+            color: 0xFF69B4, // Pink color
+            fields: [
+              {
+                name: "Authentication Key",
+                value: `\`${key}\``, // Inline code block for easy copying
+                inline: false
+              },
+              {
+                name: "Verification Details",
+                value: `\`\`\`json\n${JSON.stringify(securityInfo, null, 2)}\n\`\`\``,
+                inline: false
+              }
+            ],
+            timestamp: new Date().toISOString()
+          }
+        ]
       }),
     });
 
@@ -344,30 +361,30 @@ serve(async (req) => {
         }),
         {
           status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-    
-    // Handle unknown paths
-    return new Response(
-      JSON.stringify({ error: "Not found" }),
-      {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
-  } catch (error: any) {
-    console.error("Error processing request:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || "An error occurred"
-      }),
-      {
-        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
   }
+  
+  // Handle unknown paths
+  return new Response(
+    JSON.stringify({ error: "Not found" }),
+    {
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    }
+  );
+} catch (error: any) {
+  console.error("Error processing request:", error);
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: error.message || "An error occurred"
+    }),
+    {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    }
+  );
+}
 });
