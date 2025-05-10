@@ -8,16 +8,12 @@ const Contributors = () => {
   const imageSrc = '/images/s.jpg'; 
   const fallbackSrc = '/images/sback.jpg'; 
 
-  // Preload primary image to ensure it loads reliably
   useEffect(() => {
     const preloadImage = () => {
       const img = new Image();
       img.src = imageSrc;
-      img.onload = () => {
-        console.log('Primary image preloaded successfully:', imageSrc);
-      };
       img.onerror = () => {
-        console.error('Failed to preload primary image:', imageSrc);
+        console.error('Failed to preload image:', imageSrc);
         console.log('Will use fallback image');
       };
     };
