@@ -5,8 +5,8 @@ import { useLocation } from 'react-router-dom';
 
 const Contributors = () => {
   const location = useLocation();
-  const imageSrc = '/images/s.png'; // Primary image in public/images/
-  const fallbackSrc = '/images/sback.png'; // Fallback image in public/images/
+  const imageSrc = '/images/s.png'; 
+  const fallbackSrc = '/images/sback.png'; 
 
   // Preload primary image to ensure it loads reliably
   useEffect(() => {
