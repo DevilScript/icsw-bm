@@ -69,7 +69,7 @@ const Admin = () => {
     clan: '',
     faction: 'None',
     count: '',
-    currentCount: 0 // New field for displaying current count
+    currentCount: 0
   });
 
   const [editFormData, setEditFormData] = useState({
@@ -103,6 +103,20 @@ const Admin = () => {
     'Rank 1 Investigator',
     'Rank 2 Investigator',
     'Rank 3 Investigator'
+  ];
+
+  // Ghoul Ranks
+  const ghoulRanks = [
+    'SSS',
+    'SS+',
+    'SS',
+    'S+',
+    'S',
+    'A+',
+    'A',
+    'B+',
+    'B',
+    'C'
   ];
 
   // Load initial data
@@ -150,40 +164,36 @@ const Admin = () => {
 
     const rcChannel = supabase
       .channel('set_rc_changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'set_rc' }, 
-        () => {
-          const loadRcData = async ().land {
-            const { data, error } = await supabase
-              .from('set_rc')
-              .select('*');
-            if (error) {
-              console.error('Error loading RC data:', error);
-              return;
-            }
-            setSavedRcItems(data || []);
-          };
-          loadRcData();
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'set_rc' },
+        async () => {
+          const { data, error } = await supabase
+            .from('set_rc')
+            .select('*');
+          if (error) {
+            console.error('Error loading RC data:', error);
+            return;
+          }
+          setSavedRcItems(data || []);
         }
       )
       .subscribe();
 
     const clanChannel = supabase
       .channel('set_clan_changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'set_clan' }, 
-        () => {
-          const loadClanData = async () => {
-            const { data, error } = await supabase
-              .from('set_clan')
-              .select('*');
-            if (error) {
-              console.error('Error loading clan data:', error);
-              return;
-            }
-            setSavedClans(data || []);
-          };
-          loadClanData();
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'set_clan' },
+        async () => {
+          const { data, error } = await supabase
+            .from('set_clan')
+            .select('*');
+          if (error) {
+            console.error('Error loading clan data:', error);
+            return;
+          }
+          setSavedClans(data || []);
         }
       )
       .subscribe();
@@ -202,7 +212,7 @@ const Admin = () => {
       newClan = formType === 'add' && clans.CCG.includes(rcFormData.clan) ? rcFormData.clan :
                 formType === 'edit' && clans.CCG.includes(editFormData.clan) ? editFormData.clan :
                 formType === 'wipe' && clans.CCG.includes(wipeFormData.clan) ? wipeFormData.clan : 'Arima';
-      newKagune = 'Quinque';
+      newKagune = '';
     } else if (faction === 'Ghoul') {
       newClan = formType === 'add' && clans.Ghoul.includes(rcFormData.clan) ? rcFormData.clan :
                 formType === 'edit' && clans.Ghoul.includes(editFormData.clan) ? editFormData.clan :
@@ -219,7 +229,7 @@ const Admin = () => {
         faction,
         clan: newClan,
         kagune: newKagune,
-        rank: faction === 'CCG' ? ccgRanks[0] : 'A'
+        rank: faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0]
       });
     } else if (formType === 'edit') {
       setEditFormData({
@@ -227,7 +237,7 @@ const Admin = () => {
         faction,
         clan: newClan,
         kagune: newKagune,
-        rank: faction === 'CCG' ? ccgRanks[0] : editFormData.rank || 'A'
+        rank: faction === 'CCG' ? ccgRanks[0] : editFormData.rank || ghoulRanks[0]
       });
     } else if (formType === 'wipe') {
       const currentClan = savedClans.find(c => c.clan === newClan && c.faction === faction);
@@ -309,10 +319,10 @@ const Admin = () => {
         game_id: '',
         clan: rcFormData.clan,
         faction: rcFormData.faction,
-        kagune: rcFormData.kagune,
+        kagune: '',
         is_kagune_v2: false,
         is_sold_out: false,
-        rank: rcFormData.faction === 'CCG' ? ccgRanks[0] : 'A',
+        rank: rcFormData.faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0],
         rc: '',
         gp: '',
         price: '',
@@ -518,10 +528,10 @@ const Admin = () => {
         game_id: '',
         clan: editFormData.clan,
         faction: editFormData.faction,
-        kagune: editFormData.kagune,
+        kagune: '',
         is_kagune_v2: false,
         is_sold_out: false,
-        rank: editFormData.faction === 'CCG' ? ccgRanks[0] : 'A',
+        rank: editFormData.faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0],
         rc: '',
         gp: '',
         price: '',
@@ -755,11 +765,6 @@ const Admin = () => {
     Ghoul: ['Yoshimura', 'Kaneki']
   };
 
-  const kagunes = {
-    CCG: ['Quinque', 'Special Quinque'],
-    Ghoul: ['Ukaku', 'Koukaku', 'Rinkaku', 'Bikaku']
-  };
-
   return (
     <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-glass-dark">
       <div className="max-w-4xl mx-auto">
@@ -858,70 +863,37 @@ const Admin = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="rc-kagune">คากุเนะ</Label>
-                      {rcFormData.faction === 'CCG' ? (
-                        <Select
-                          value={rcFormData.kagune}
-                          onValueChange={(val) => setRcFormData({...rcFormData, kagune: val})}
-                        >
-                          <SelectTrigger className="glass-input border-pink-300/30">
-                            <SelectValue placeholder="เลือกคากุเนะ" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {kagunes.CCG.map((kagune) => (
-                              <SelectItem key={kagune} value={kagune}>{kagune}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input
-                          id="rc-kagune"
-                          placeholder="กรอกคากุเนะ"
-                          className="glass-input border-pink-300/30 focus:border-pink-300/50"
-                          value={rcFormData.kagune}
-                          onChange={(e) => setRcFormData({...rcFormData, kagune: e.target.value})}
-                          required
-                        />
-                      )}
+                      <Input
+                        id="rc-kagune"
+                        placeholder="กรอกคากุเนะ"
+                        className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                        value={rcFormData.kagune}
+                        onChange={(e) => setRcFormData({...rcFormData, kagune: e.target.value})}
+                        required
+                      />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="rc-rank">อันดับ</Label>
-                      {rcFormData.faction === 'CCG' ? (
-                        <Select
-                          value={rcFormData.rank}
-                          onValueChange={(val) => setRcFormData({...rcFormData, rank: val})}
-                        >
-                          <SelectTrigger className="glass-input border-pink-300/30">
-                            <SelectValue placeholder="เลือกอันดับ" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ccgRanks.map((rank) => (
+                      <Select
+                        value={rcFormData.rank}
+                        onValueChange={(val) => setRcFormData({...rcFormData, rank: val})}
+                      >
+                        <SelectTrigger className="glass-input border-pink-300/30">
+                          <SelectValue placeholder="เลือกอันดับ" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {rcFormData.faction === 'CCG' ? (
+                            ccgRanks.map((rank) => (
                               <SelectItem key={rank} value={rank}>{rank}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Select
-                          value={rcFormData.rank}
-                          onValueChange={(val) => setRcFormData({...rcFormData, rank: val})}
-                        >
-                          <SelectTrigger className="glass-input border-pink-300/30">
-                            <SelectValue placeholder="เลือกอันดับ" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="SSS">SSS</SelectItem>
-                            <SelectItem value="SS+">SS+</SelectItem>
-                            <SelectItem value="SS">SS</SelectItem>
-                            <SelectItem value="S+">S+</SelectItem>
-                            <SelectItem value="S">S</SelectItem>
-                            <SelectItem value="A+">A+</SelectItem>
-                            <SelectItem value="A">A</SelectItem>
-                            <SelectItem value="B+">B+</SelectItem>
-                            <SelectItem value="B">B</SelectItem>
-                            <SelectItem value="C">C</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
+                            ))
+                          ) : (
+                            ghoulRanks.map((rank) => (
+                              <SelectItem key={rank} value={rank}>{rank}</SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -1162,70 +1134,37 @@ const Admin = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="edit-kagune">คากุเนะ</Label>
-                          {editFormData.faction === 'CCG' ? (
-                            <Select
-                              value={editFormData.kagune}
-                              onValueChange={(val) => setEditFormData({...editFormData, kagune: val})}
-                            >
-                              <SelectTrigger className="glass-input border-pink-300/30">
-                                <SelectValue placeholder="เลือกคากุเนะ" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {kagunes.CCG.map((kagune) => (
-                                  <SelectItem key={kagune} value={kagune}>{kagune}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input
-                              id="edit-kagune"
-                              placeholder="กรอกคากุเนะ"
-                              className="glass-input border-pink-300/30 focus:border-pink-300/50"
-                              value={editFormData.kagune}
-                              onChange={(e) => setEditFormData({...editFormData, kagune: e.target.value})}
-                              required
-                            />
-                          )}
+                          <Input
+                            id="edit-kagune"
+                            placeholder="กรอกคากุเนะ"
+                            className="glass-input border-pink-300/30 focus:border-pink-300/50"
+                            value={editFormData.kagune}
+                            onChange={(e) => setEditFormData({...editFormData, kagune: e.target.value})}
+                            required
+                          />
                         </div>
 
                         <div className="space-y-2">
                           <Label htmlFor="edit-rank">อันดับ</Label>
-                          {editFormData.faction === 'CCG' ? (
-                            <Select
-                              value={editFormData.rank}
-                              onValueChange={(val) => setEditFormData({...editFormData, rank: val})}
-                            >
-                              <SelectTrigger className="glass-input border-pink-300/30">
-                                <SelectValue placeholder="เลือกอันดับ" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {ccgRanks.map((rank) => (
+                          <Select
+                            value={editFormData.rank}
+                            onValueChange={(val) => setEditFormData({...editFormData, rank: val})}
+                          >
+                            <SelectTrigger className="glass-input border-pink-300/30">
+                              <SelectValue placeholder="เลือกอันดับ" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {editFormData.faction === 'CCG' ? (
+                                ccgRanks.map((rank) => (
                                   <SelectItem key={rank} value={rank}>{rank}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Select
-                              value={editFormData.rank}
-                              onValueChange={(val) => setEditFormData({...editFormData, rank: val})}
-                            >
-                              <SelectTrigger className="glass-input border-pink-300/30">
-                                <SelectValue placeholder="เลือกอันดับ" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="SSS">SSS</SelectItem>
-                                <SelectItem value="SS+">SS+</SelectItem>
-                                <SelectItem value="SS">SS</SelectItem>
-                                <SelectItem value="S+">S+</SelectItem>
-                                <SelectItem value="S">S</SelectItem>
-                                <SelectItem value="A+">A+</SelectItem>
-                                <SelectItem value="A">A</SelectItem>
-                                <SelectItem value="B+">B+</SelectItem>
-                                <SelectItem value="B">B</SelectItem>
-                                <SelectItem value="C">C</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          )}
+                                ))
+                              ) : (
+                                ghoulRanks.map((rank) => (
+                                  <SelectItem key={rank} value={rank}>{rank}</SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
