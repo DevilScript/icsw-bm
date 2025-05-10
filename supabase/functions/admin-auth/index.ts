@@ -5,7 +5,7 @@ import { encode as base64Encode } from "https://deno.land/std@0.177.0/encoding/b
 // Constants
 const EXPIRY_TIME_MINUTES = 5;
 const SESSION_EXPIRY_HOURS = 24;
-const MAX_AUTH_ATTEMPTS = 3;
+const MAX_AUTH_ATTEMPTS = 1;
 const DISCORD_WEBHOOK_URL = Deno.env.get("DISCORD_WEBHOOK_URL");
 
 // CORS headers - Updated to include X-CSRF-TOKEN
@@ -69,7 +69,8 @@ async function sendWebhookNotification(key: string, securityInfo: any): Promise<
     const encryptionKey = await generateEncryptionKey();
     const encryptedKey = await encryptData(key, encryptionKey);
     
-    const response = await fetch(DISCORD_WEBHOOK_URL, {
+    // Send first webhook with embed
+    const embedResponse = await fetch(DISCORD_WEBHOOK_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -78,17 +79,11 @@ async function sendWebhookNotification(key: string, securityInfo: any): Promise<
         embeds: [
           {
             title: "New Admin Authentication Request",
-            description: "Please copy the key below to authenticate. Do not copy other details.",
             color: 0xFF69B4, // Pink color
             fields: [
               {
                 name: "Authentication Key",
-                value: key, // Plain text for easier copying on mobile
-                inline: false
-              },
-              {
-                name: "──────────────",
-                value: "Details below are for reference only.",
+                value: `\`${key}\``, // Inline code block
                 inline: false
               },
               {
@@ -103,7 +98,23 @@ async function sendWebhookNotification(key: string, securityInfo: any): Promise<
       }),
     });
 
-    return response.ok;
+    if (!embedResponse.ok) {
+      console.error("Failed to send embed webhook:", embedResponse.statusText);
+      return false;
+    }
+
+    // Send second webhook with only the key
+    const keyResponse = await fetch(DISCORD_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content: key // Plain text with only the key
+      }),
+    });
+
+    return keyResponse.ok;
   } catch (error) {
     console.error("Error sending webhook notification:", error);
     return false;
