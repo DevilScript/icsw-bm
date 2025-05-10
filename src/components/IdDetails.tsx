@@ -37,7 +37,17 @@ const IdDetails = () => {
           throw error;
         }
 
-        setIdData(data || []);
+        // Sort data: non-sold-out first, then sold-out, ordered by game_id within each group
+        const sortedData = (data || []).sort((a, b) => {
+          // Sort by is_sold_out first (false before true)
+          if (a.is_sold_out !== b.is_sold_out) {
+            return a.is_sold_out ? 1 : -1;
+          }
+          // Within same is_sold_out group, sort by game_id alphabetically
+          return a.game_id.localeCompare(b.game_id);
+        });
+
+        setIdData(sortedData);
       } catch (error) {
         toast({
           title: "Error",
