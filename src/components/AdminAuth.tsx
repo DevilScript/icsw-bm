@@ -190,7 +190,7 @@ const AdminAuth = () => {
       // Request clipboard permission and read text
       const text = await navigator.clipboard.readText();
       if (text) {
-        setInputKey(text.trim());
+        setInputKey(text); // Keep original text without trimming
         toast({
           title: "วางรหัสสำเร็จ",
           description: "รหัสถูกวางลงในช่องเรียบร้อยแล้ว",
@@ -366,18 +366,11 @@ const AdminAuth = () => {
           <form onSubmit={handleVerificationSubmit} className="space-y-4">
             <div className="flex items-center space-x-2">
               <Input
-                type="password" // Changed from password to text
+                type="password" // Keep original type
                 placeholder="ป้อนรหัสยืนยันตัวตน"
                 className="glass-input border-pink-300/30 focus:border-pink-400/50 text-center custom-cursor flex-1"
                 value={inputKey}
                 onChange={(e) => setInputKey(e.target.value)}
-                onPaste={(e) => {
-                  // Explicitly handle paste event
-                  const pastedText = e.clipboardData.getData('text');
-                  if (pastedText) {
-                    setInputKey(pastedText.trim());
-                  }
-                }}
                 required
                 disabled={isLoading}
                 autoComplete="off"
