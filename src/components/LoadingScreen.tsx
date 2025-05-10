@@ -84,7 +84,7 @@ const LoadingScreen: React.FC = () => {
           />
         </div>
         
-        <p className="text-white text-sm">กำลังโหลด... {progress}%</p>
+        <p className="text-white text-sm">Loading... {progress}%</p>
       </div>
     </div>
   );
