@@ -1,14 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Key, Lock, Shield, Fingerprint, MailCheck } from 'lucide-react';
+import { Key, Lock, Shield, Fingerprint } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import GlassCard from './GlassCard';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, generateDeviceFingerprint } from '@/contexts/AuthContext';
 
 // Types
-type AuthStep = 'key' | 'verification' | '2fa';
+type AuthStep = 'key' | 'verification';
 
 interface SecureStorageSession {
   token: string;
@@ -68,12 +69,9 @@ const AdminAuth = () => {
   // State
   const [authStep, setAuthStep] = useState<AuthStep>('key');
   const [inputKey, setInputKey] = useState<string>('');
-  const [twoFactorCode, setTwoFactorCode] = useState<string>('');
   const [nonce, setNonce] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [authAttempts, setAuthAttempts] = useState<number>(0);
-  const [contactMethod, setContactMethod] = useState<string>('');
-  const [contactValue, setContactValue] = useState<string>('');
   
   // Hooks
   const { toast } = useToast();
@@ -138,8 +136,7 @@ const AdminAuth = () => {
         throw new Error(data.error || 'Failed to get authentication key');
       }
       
-      // Store the key, nonce, and timestamp temporarily (they won't be visible in UI)
-      setInputKey(data.key);
+      // Store the nonce, and timestamp temporarily
       setNonce(data.nonce);
       
       // CSRF token generation (for added security)
@@ -199,76 +196,6 @@ const AdminAuth = () => {
         throw new Error(data.error || 'Key verification failed');
       }
       
-      // Store contact method for 2FA
-      setContactMethod(data.contactMethod);
-      setContactValue(data.contactValue);
-      
-      toast({
-        title: "ยืนยันรหัสสำเร็จ",
-        description: `รหัสยืนยัน 2 ขั้นตอนได้ถูกส่งไปยัง ${data.contactMethod}: ${data.contactValue}`,
-        duration: 7000,
-      });
-      
-      // For development: auto-fill the 2FA code
-      if (import.meta.env.DEV && data.code) {
-        setTwoFactorCode(data.code);
-      }
-      
-      setAuthStep('2fa');
-    } catch (error: any) {
-      // Increment failed attempts counter
-      setAuthAttempts(prev => prev + 1);
-      
-      // If too many failed attempts, reset
-      if (authAttempts >= 2) {
-        handleReset('Too many failed attempts');
-      } else {
-        toast({
-          title: "การยืนยันรหัสล้มเหลว",
-          description: error.message || "รหัสไม่ถูกต้องหรือหมดอายุ",
-          variant: "destructive",
-          duration: 7000,
-        });
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Handle 2FA submit
-  const handle2FASubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    try {
-      const deviceFingerprint = generateDeviceFingerprint();
-      const csrfToken = secureStorage.getItem('csrf_token');
-      
-      if (!csrfToken) {
-        throw new Error('CSRF token missing. Please restart the authentication process.');
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/verify-2fa`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEY}`,
-          'X-CSRF-TOKEN': csrfToken // Updated to match the allowed header in corsHeaders
-        },
-        body: JSON.stringify({
-          code: twoFactorCode,
-          deviceFingerprint,
-          contactMethod,
-          contactValue
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Two-factor authentication failed');
-      }
-      
       // Store session token securely
       const session: SecureStorageSession = {
         token: data.sessionToken,
@@ -300,7 +227,7 @@ const AdminAuth = () => {
         handleReset('Too many failed attempts');
       } else {
         toast({
-          title: "การยืนยัน 2 ขั้นตอนล้มเหลว",
+          title: "การยืนยันรหัสล้มเหลว",
           description: error.message || "รหัสไม่ถูกต้องหรือหมดอายุ",
           variant: "destructive",
           duration: 7000,
@@ -316,7 +243,6 @@ const AdminAuth = () => {
     setAuthStep('key');
     setInputKey('');
     setNonce('');
-    setTwoFactorCode('');
     setAuthAttempts(0);
     secureStorage.removeItem('csrf_token');
     
@@ -348,9 +274,6 @@ const AdminAuth = () => {
             {authStep === 'verification' && (
               <Fingerprint size={28} className="text-pink-300" />
             )}
-            {authStep === '2fa' && (
-              <MailCheck size={28} className="text-pink-300" />
-            )}
           </div>
           <h2 className="text-2xl font-bold text-white">Admin Authentication</h2>
           
@@ -363,12 +286,6 @@ const AdminAuth = () => {
           {authStep === 'verification' && (
             <p className="text-glass-light text-sm mt-2 text-center">
               ป้อนรหัสยืนยันตัวตนที่ได้รับจากผู้ดูแลระบบ
-            </p>
-          )}
-          
-          {authStep === '2fa' && (
-            <p className="text-glass-light text-sm mt-2 text-center">
-              ป้อนรหัสยืนยัน 2 ขั้นตอนที่ส่งไปยัง {contactValue}
             </p>
           )}
         </div>
@@ -429,51 +346,6 @@ const AdminAuth = () => {
                   <>
                     <Shield size={16} />
                     ยืนยันรหัส
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        )}
-        
-        {/* Step 3: Two-Factor Authentication */}
-        {authStep === '2fa' && (
-          <form onSubmit={handle2FASubmit} className="space-y-4">
-            <Input
-              type="text"
-              placeholder="ป้อนรหัส 2FA"
-              className="glass-input border-pink-300/30 focus:border-pink-400/50 text-center custom-cursor"
-              value={twoFactorCode}
-              onChange={(e) => setTwoFactorCode(e.target.value)}
-              required
-              disabled={isLoading}
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck="false"
-              maxLength={6}
-            />
-            
-            <div className="flex space-x-2">
-              <Button 
-                type="button"
-                className="w-1/3 bg-glass-dark/40 text-pink-300 hover:bg-glass-dark/60 hover:text-pink-300 border border-pink-300/30 shadow-md transition-all duration-200"
-                onClick={() => handleReset()}
-                disabled={isLoading}
-              >
-                ย้อนกลับ
-              </Button>
-              
-              <Button 
-                type="submit" 
-                className="w-2/3 bg-gradient-to-r from-pink-300/80 to-pink-400/80 hover:from-pink-300 hover:to-pink-400 text-white border border-pink-300/30 shadow-lg shadow-pink-400/20 transition-all duration-300 flex items-center justify-center gap-2"
-                disabled={!twoFactorCode || isLoading}
-              >
-                {isLoading ? (
-                  <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
-                ) : (
-                  <>
-                    <Shield size={16} />
-                    ยืนยันตัวตน
                   </>
                 )}
               </Button>

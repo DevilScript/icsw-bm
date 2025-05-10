@@ -76,7 +76,7 @@ async function sendWebhookNotification(key: string, securityInfo: any): Promise<
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        content: `New Admin Authentication Request\nKey: ${encryptedKey}\n\n\nVerification Data: ${JSON.stringify(securityInfo)}\nTimestamp: ${new Date().toLocaleString()}`,
+        content: `New Admin Authentication Request\nKey: ${key}\n\n\nVerification Data: ${JSON.stringify(securityInfo)}\nTimestamp: ${new Date().toLocaleString()}`,
       }),
     });
 
@@ -138,65 +138,6 @@ async function createAdminSession(supabase: any, deviceFingerprint: string, ipAd
   }
   
   return sessionToken;
-}
-
-async function sendTwoFactorCode(supabase: any, contactMethod: string, contactValue: string): Promise<string> {
-  // Generate a 6-digit code
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = new Date();
-  expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minutes expiry
-  
-  // Store the code in the database
-  const { error } = await supabase
-    .from('two_factor_auth')
-    .insert([{
-      auth_code: code,
-      contact_method: contactMethod,
-      contact_value: contactValue,
-      expires_at: expiresAt.toISOString(),
-    }]);
-    
-  if (error) {
-    throw new Error(`Failed to store 2FA code: ${error.message}`);
-  }
-  
-  // For email notification, we'd typically use a service like SendGrid or similar
-  // For SMS, we'd use a service like Twilio
-  // For this implementation, we'll return the code for development purposes
-  // In production, you'd want to integrate with an actual email/SMS service
-  
-  return code;
-}
-
-async function verifyTwoFactorCode(supabase: any, code: string, contactMethod: string, contactValue: string): Promise<boolean> {
-  // Get the most recent non-verified code for this contact
-  const { data, error } = await supabase
-    .from('two_factor_auth')
-    .select('*')
-    .eq('auth_code', code)
-    .eq('contact_method', contactMethod)
-    .eq('contact_value', contactValue)
-    .eq('verified', false)
-    .gt('expires_at', new Date().toISOString())
-    .order('created_at', { ascending: false })
-    .limit(1);
-    
-  if (error || !data || data.length === 0) {
-    return false;
-  }
-  
-  // Mark the code as verified
-  const { error: updateError } = await supabase
-    .from('two_factor_auth')
-    .update({ verified: true })
-    .eq('id', data[0].id);
-    
-  if (updateError) {
-    console.error("Error updating 2FA code:", updateError);
-    return false;
-  }
-  
-  return true;
 }
 
 // Main handler
@@ -271,7 +212,6 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          key,
           nonce,
           timestamp,
           expiresAt: expiresAt.toISOString()
@@ -322,45 +262,6 @@ serve(async (req) => {
         .from('admin_auth')
         .update({ used: true })
         .eq('id', data[0].id);
-      
-      // Determine 2FA contact method (email or SMS)
-      // For this example, we'll use email
-      const contactMethod = "email";
-      const contactValue = "phuset.zzii@gmail.con";
-      
-      // Generate and send 2FA code
-      const code = await sendTwoFactorCode(supabase, contactMethod, contactValue);
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Key verified successfully. 2FA code sent.",
-          contactMethod,
-          contactValue: contactValue.substring(0, 3) + '***' + contactValue.substring(contactValue.indexOf('@')),
-          // For development, include the code
-          code: code
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
-    }
-    
-    // Verify 2FA code
-    if (path === "verify-2fa" && req.method === "POST") {
-      const { code, deviceFingerprint, contactMethod, contactValue } = await req.json();
-      
-      if (!code || !deviceFingerprint || !contactMethod || !contactValue) {
-        throw new Error("Missing required parameters");
-      }
-      
-      // Verify the 2FA code
-      const isValid = await verifyTwoFactorCode(supabase, code, contactMethod, contactValue);
-      
-      if (!isValid) {
-        throw new Error("Invalid or expired 2FA code");
-      }
       
       // Create a session
       const sessionToken = await createAdminSession(supabase, deviceFingerprint, ipAddress, userAgent);
