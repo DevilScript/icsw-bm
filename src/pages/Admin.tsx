@@ -49,6 +49,9 @@ const Admin = () => {
     is_active: true
   });
 
+  // Separate state for faction in add tab
+  const [factionAdd, setFactionAdd] = useState('None');
+
   // RC Management states
   const [rcManageData, setRcManageData] = useState({
     rc: '',
@@ -230,6 +233,7 @@ const Admin = () => {
     console.log(`New values: clan=${newClan}, kagune=${newKagune}, rank=${faction === 'CCG' ? ccgRanks[0] : ghoulRanks[0]}`);
 
     if (formType === 'add') {
+      setFactionAdd(faction);
       setRcFormData({
         game_id: '',
         clan: newClan,
@@ -294,8 +298,16 @@ const Admin = () => {
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      console.log('Enter key pressed, preventing form submission');
+      e.preventDefault();
+    }
+  };
+
   const handleRcSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('handleRcSubmit called');
 
     if (rcFormData.faction === 'None') {
       console.error('Validation failed: faction is None');
@@ -348,6 +360,7 @@ const Admin = () => {
         duration: 5000,
       });
 
+      setFactionAdd('None');
       setRcFormData({
         game_id: '',
         clan: '',
@@ -382,6 +395,7 @@ const Admin = () => {
 
   const handleWipeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('handleWipeSubmit called');
 
     if (wipeFormData.faction === 'None') {
       console.error('Validation failed: faction is None for wipe');
@@ -513,6 +527,7 @@ const Admin = () => {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('handleEditSubmit called');
 
     if (editFormData.faction === 'None') {
       console.error('Validation failed: faction is None for edit');
@@ -601,6 +616,7 @@ const Admin = () => {
 
   const handleRemoveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('handleRemoveSubmit called');
 
     try {
       console.log('Removing ID:', removeId);
@@ -637,6 +653,7 @@ const Admin = () => {
 
   const handleRcManageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('handleRcManageSubmit called');
 
     if (!rcManageData.rc || !rcManageData.price) {
       console.error('Validation failed: rc or price is empty for RC manage');
@@ -717,6 +734,7 @@ const Admin = () => {
 
   const handleEditRcSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('handleEditRcSubmit called');
 
     if (!editRcData.rc || !editRcData.price) {
       console.error('Validation failed: rc or price is empty for RC edit');
@@ -775,6 +793,7 @@ const Admin = () => {
 
   const handleRemoveRcSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('handleRemoveRcSubmit called');
 
     try {
       console.log('Removing RC:', removeRcId);
@@ -834,6 +853,7 @@ const Admin = () => {
   };
 
   console.log('Rendering with rcFormData.faction:', rcFormData.faction);
+  console.log('Rendering with factionAdd:', factionAdd);
   console.log('Rendering with editFormData.faction:', editFormData.faction);
 
   return (
@@ -888,6 +908,7 @@ const Admin = () => {
                       className="glass-input border-pink-300/30 focus:border-pink-300/50"
                       value={rcFormData.is_sold_out ? '❌ Sold Out ❌' : rcFormData.game_id}
                       onChange={(e) => !rcFormData.is_sold_out && setRcFormData({...rcFormData, game_id: e.target.value})}
+                      onKeyDown={handleKeyDown}
                       disabled={rcFormData.is_sold_out}
                       required
                     />
@@ -897,8 +918,7 @@ const Admin = () => {
                     <div className="space-y-2">
                       <Label htmlFor="rc-faction">ฝ่าย</Label>
                       <Select
-                        defaultValue="None"
-                        value={rcFormData.faction}
+                        value={factionAdd}
                         onValueChange={(val) => {
                           console.log('Faction selected for add:', val);
                           handleFactionChange(val, 'add');
@@ -944,6 +964,7 @@ const Admin = () => {
                         className="glass-input border-pink-300/30 focus:border-pink-300/50"
                         value={rcFormData.kagune}
                         onChange={(e) => setRcFormData({...rcFormData, kagune: e.target.value})}
+                        onKeyDown={handleKeyDown}
                         required
                       />
                     </div>
@@ -1017,6 +1038,7 @@ const Admin = () => {
                         className="glass-input border-pink-300/30 focus:border-pink-300/50"
                         value={rcFormData.rc}
                         onChange={(e) => setRcFormData({...rcFormData, rc: e.target.value})}
+                        onKeyDown={handleKeyDown}
                         required
                       />
                     </div>
@@ -1030,6 +1052,7 @@ const Admin = () => {
                         className="glass-input border-pink-300/30 focus:border-pink-300/50"
                         value={rcFormData.gp}
                         onChange={(e) => setRcFormData({...rcFormData, gp: e.target.value})}
+                        onKeyDown={handleKeyDown}
                         required
                       />
                     </div>
@@ -1043,6 +1066,7 @@ const Admin = () => {
                         className="glass-input border-pink-300/30 focus:border-pink-300/50"
                         value={rcFormData.price}
                         onChange={(e) => setRcFormData({...rcFormData, price: e.target.value})}
+                        onKeyDown={handleKeyDown}
                         required
                       />
                     </div>
@@ -1056,6 +1080,7 @@ const Admin = () => {
                       className="glass-input border-pink-300/30 focus:border-pink-300/50"
                       value={rcFormData.link}
                       onChange={(e) => setRcFormData({...rcFormData, link: e.target.value})}
+                      onKeyDown={handleKeyDown}
                     />
                   </div>
 
@@ -1121,6 +1146,7 @@ const Admin = () => {
                       className="glass-input border-pink-300/30 focus:border-pink-300/50"
                       value={wipeFormData.count}
                       onChange={(e) => setWipeFormData({...wipeFormData, count: e.target.value})}
+                      onKeyDown={handleKeyDown}
                       required
                     />
                   </div>
@@ -1136,7 +1162,7 @@ const Admin = () => {
             </TabsContent>
 
             <TabsContent value="edit-id" className="mt-0">
-              <GlassCard className="border border-pink-Workbook 300/30 shadow-md">
+              <GlassCard className="border border-pink-300/30 shadow-md">
                 <form onSubmit={handleEditSubmit} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="edit-select-id">เลือก ID เพื่อแก้ไข</Label>
@@ -1167,6 +1193,7 @@ const Admin = () => {
                           className="glass-input border-pink-300/30 focus:border-pink-300/50"
                           value={editFormData.is_sold_out ? '❌ Sold Out ❌' : editFormData.game_id}
                           onChange={(e) => !editFormData.is_sold_out && setEditFormData({...editFormData, game_id: e.target.value})}
+                          onKeyDown={handleKeyDown}
                           disabled={editFormData.is_sold_out}
                           required
                         />
@@ -1223,6 +1250,7 @@ const Admin = () => {
                             className="glass-input border-pink-300/30 focus:border-pink-300/50"
                             value={editFormData.kagune}
                             onChange={(e) => setEditFormData({...editFormData, kagune: e.target.value})}
+                            onKeyDown={handleKeyDown}
                             required
                           />
                         </div>
@@ -1296,6 +1324,7 @@ const Admin = () => {
                             className="glass-input border-pink-300/30 focus:border-pink-300/50"
                             value={editFormData.rc}
                             onChange={(e) => setEditFormData({...editFormData, rc: e.target.value})}
+                            onKeyDown={handleKeyDown}
                             required
                           />
                         </div>
@@ -1309,6 +1338,7 @@ const Admin = () => {
                             className="glass-input border-pink-300/30 focus:border-pink-300/50"
                             value={editFormData.gp}
                             onChange={(e) => setEditFormData({...editFormData, gp: e.target.value})}
+                            onKeyDown={handleKeyDown}
                             required
                           />
                         </div>
@@ -1322,6 +1352,7 @@ const Admin = () => {
                             className="glass-input border-pink-300/30 focus:border-pink-300/50"
                             value={editFormData.price}
                             onChange={(e) => setEditFormData({...editFormData, price: e.target.value})}
+                            onKeyDown={handleKeyDown}
                             required
                           />
                         </div>
@@ -1335,6 +1366,7 @@ const Admin = () => {
                           className="glass-input border-pink-300/30 focus:border-pink-300/50"
                           value={editFormData.link}
                           onChange={(e) => setEditFormData({...editFormData, link: e.target.value})}
+                          onKeyDown={handleKeyDown}
                         />
                       </div>
 
@@ -1396,6 +1428,7 @@ const Admin = () => {
                         className="glass-input border-pink-300/30 focus:border-pink-300/50"
                         value={rcManageData.rc}
                         onChange={(e) => setRcManageData({...rcManageData, rc: e.target.value})}
+                        onKeyDown={handleKeyDown}
                         required
                       />
                     </div>
@@ -1409,6 +1442,7 @@ const Admin = () => {
                         className="glass-input border-pink-300/30 focus:border-pink-300/50"
                         value={rcManageData.price}
                         onChange={(e) => setRcManageData({...rcManageData, price: e.target.value})}
+                        onKeyDown={handleKeyDown}
                         required
                       />
                     </div>
@@ -1454,6 +1488,7 @@ const Admin = () => {
                             className="glass-input border-pink-300/30 focus:border-pink-300/50"
                             value={editRcData.rc}
                             onChange={(e) => setEditRcData({...editRcData, rc: e.target.value})}
+                            onKeyDown={handleKeyDown}
                             required
                           />
                         </div>
@@ -1467,6 +1502,7 @@ const Admin = () => {
                             className="glass-input border-pink-300/30 focus:border-pink-300/50"
                             value={editRcData.price}
                             onChange={(e) => setEditRcData({...editRcData, price: e.target.value})}
+                            onKeyDown={handleKeyDown}
                             required
                           />
                         </div>
