@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { XCircle } from 'lucide-react';
 import GlassCard from './GlassCard';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +15,7 @@ export interface IdData {
   gp: number;
   price: number;
   is_active: boolean;
+  is_sold_out: boolean;
   link?: string;
 }
 
@@ -38,11 +39,11 @@ const IdDetails = () => {
 
         setIdData(data || []);
       } catch (error) {
-        console.error('Error fetching ID data:', error);
         toast({
           title: "Error",
           description: "Failed to load ID data from the server.",
-          variant: "destructive"
+          variant: "destructive",
+          duration: 7000,
         });
       } finally {
         setLoading(false);
@@ -51,19 +52,17 @@ const IdDetails = () => {
 
     loadIdData();
 
-    // Setup real-time subscription for ID table
     const idChannel = supabase
       .channel('id-details-changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'set_id' 
-      }, (payload) => {
-        loadIdData(); // Reload data when changes occur
-      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'set_id' },
+        () => {
+          loadIdData();
+        }
+      )
       .subscribe();
 
-    // Setup visibility and focus handlers for real-time updates
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         loadIdData();
@@ -77,12 +76,10 @@ const IdDetails = () => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
 
-    // Auto-refresh data every 30 seconds
     const intervalId = setInterval(() => {
       loadIdData();
     }, 30000);
 
-    // Cleanup
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
@@ -91,7 +88,8 @@ const IdDetails = () => {
     };
   }, [toast]);
 
-  const isValidUrl = (url: string): boolean => {
+  const isValidUrl = (url: string | undefined): boolean => {
+    if (!url) return false;
     try {
       new URL(url);
       return true;
@@ -118,22 +116,35 @@ const IdDetails = () => {
         idData.map((data) => (
           <GlassCard
             key={data.id}
-            className="relative overflow-visible border border-pink-300/30 shadow-lg shadow-pink-500/10 bordered-glow"
+            className={`relative overflow-visible border border-pink-300/30 shadow-lg shadow-pink-500/10 transition-all duration-500 ${
+              data.is_sold_out ? 'opacity-50 pointer-events-none animate-fade-in' : 'hover:scale-105 hover:shadow-pink-300/20'
+            }`}
           >
-            <div className="mb-4">
-              <h3 className="text-xl font-bold text-white">{data.game_id}</h3>
+            {data.is_sold_out && (
+              <>
+                <div className="absolute top-4 right-4 bg-red-500/80 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center animate-pulse-slow z-20">
+                  <XCircle className="w-4 h-4 mr-1" />
+                  Sold Out
+                </div>
+                <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm rounded-lg pointer-events-none z-10"></div>
+              </>
+            )}
+            <div className="relative z-20 mb-4">
+              <h3 className={`text-xl font-bold ${data.is_sold_out ? 'text-red-400' : 'text-white'}`}>
+                {data.game_id}
+              </h3>
             </div>
 
-            <div className="space-y-2 mb-6">
+            <div className="relative z-20 space-y-2 mb-6">
               <div className="flex justify-between items-center">
                 <span className="text-glass-light">Clan:</span>
                 <span className="font-medium text-white">{data.clan}</span>
               </div>
 
               <div className="flex justify-between items-center">
-                <span className="text-glass-light">Kagune:</span>
+                <span className="text-glass-light">Weapon:</span>
                 <span className="font-medium text-white">
-                  {data.kagune}
+                  {data.kagune || 'None'}
                   {data.is_kagune_v2 && (
                     <span className="ml-1 inline-flex items-center justify-center h-4 w-4 text-xs bg-green-300/20 text-green-300 rounded-full">
                       v2
@@ -158,16 +169,22 @@ const IdDetails = () => {
               </div>
             </div>
 
-            <div className="flex justify-between items-center mt-4 gap-4">
+            <div className="relative z-20 flex justify-between items-center mt-4 gap-4">
               {data.link && isValidUrl(data.link) ? (
                 <a
                   href={data.link}
                   target="_blank"
                   rel="noopener noreferrer"
                   data-testid="buy-link"
-                  className="relative z-10 bg-pink-300/20 hover:bg-pink-300/30 text-pink-300 font-bold border border-pink-300/30 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-pink-300/20 px-4 py-1.5 rounded-full text-sm"
+                  className={`bg-pink-300/20 text-pink-300 font-bold border border-pink-300/30 px-4 py-1.5 rounded-full text-sm transition-all duration-300 ${
+                    data.is_sold_out
+                      ? 'opacity-50 cursor-not-allowed pointer-events-none'
+                      : 'hover:bg-pink-300/30 hover:scale-105 hover:shadow-lg hover:shadow-pink-300/20'
+                  }`}
                   onClick={(e) => {
-                    e.stopPropagation();
+                    if (data.is_sold_out) {
+                      e.preventDefault();
+                    }
                   }}
                 >
                   To Buy
@@ -176,7 +193,13 @@ const IdDetails = () => {
                 <span className="text-glass-light text-sm">No purchase link available</span>
               )}
 
-              <div className="min-w-[60px] bg-pink-300/20 px-4 py-1.5 rounded-full border border-pink-300/30 hover:bg-pink-300/30 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-pink-300/20 text-center">
+              <div
+                className={`min-w-[60px] bg-pink-300/20 px-4 py-1.5 rounded-full border border-pink-300/30 text-center ${
+                  data.is_sold_out
+                    ? 'opacity-50'
+                    : 'hover:bg-pink-300/30 hover:scale-105 hover:shadow-lg hover:shadow-pink-300/20'
+                } transition-all duration-300`}
+              >
                 <span className="text-pink-300 font-bold text-sm">${data.price}</span>
               </div>
             </div>
