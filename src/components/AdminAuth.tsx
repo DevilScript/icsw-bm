@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -185,7 +184,7 @@ const AdminAuth = () => {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${API_KEY}`,
-          'X-CSRF-TOKEN': csrfToken
+          'X-CSRF-TOKEN': csrfToken // This header name must match the one in corsHeaders
         },
         body: JSON.stringify({
           key: inputKey,
@@ -254,7 +253,7 @@ const AdminAuth = () => {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${API_KEY}`,
-          'X-CSRF-TOKEN': csrfToken
+          'X-CSRF-TOKEN': csrfToken // Updated to match the allowed header in corsHeaders
         },
         body: JSON.stringify({
           code: twoFactorCode,

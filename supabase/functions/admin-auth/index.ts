@@ -9,10 +9,10 @@ const SESSION_EXPIRY_HOURS = 24;
 const MAX_AUTH_ATTEMPTS = 3;
 const DISCORD_WEBHOOK_URL = Deno.env.get("DISCORD_WEBHOOK_URL");
 
-// CORS headers
+// CORS headers - Updated to include X-CSRF-TOKEN
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-csrf-token",
   "Access-Control-Allow-Methods": "POST, OPTIONS, GET, DELETE",
 };
 
@@ -285,11 +285,22 @@ serve(async (req) => {
     
     // Verify authentication key
     if (path === "verify-key" && req.method === "POST") {
-      const { key, nonce, deviceFingerprint } = await req.json();
+      console.log("Processing verify-key endpoint");
+      let reqBody;
+      try {
+        reqBody = await req.json();
+      } catch (e) {
+        console.error("Failed to parse request body:", e);
+        throw new Error("Invalid request body");
+      }
+      
+      const { key, nonce, deviceFingerprint } = reqBody;
       
       if (!key || !nonce || !deviceFingerprint) {
         throw new Error("Missing required parameters");
       }
+      
+      console.log("Verifying key with nonce:", nonce);
       
       // Find the key in the database
       const { data, error } = await supabase
