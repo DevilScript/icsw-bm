@@ -1,8 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Instagram } from 'lucide-react';
 import GlassCard from '@/components/GlassCard';
+import { useLocation } from 'react-router-dom';
 
 const Contributors = () => {
+  const location = useLocation();
+
+  // Preload image to ensure it loads reliably
+  useEffect(() => {
+    const img = new Image();
+    img.src = "https://i.ibb.co/wFD7JTdb/D3-D095-EF-D0-D5-47-A1-B382-BBA57-A1-DE014.jpg";
+    img.onload = () => console.log("Image preloaded successfully");
+    img.onerror = () => console.error("Failed to preload image");
+  }, [location.pathname]);
+
   return (
     <>
       <style>
@@ -41,9 +52,13 @@ const Contributors = () => {
           <div className="flex flex-col items-center">
             <div className="profile-container relative w-32 h-32 mb-4 overflow-visible transform hover:scale-105 transition-all duration-300">
               <img
-                src="https://i.ibb.co/wFD7JTdb/D3-D095-EF-D0-D5-47-A1-B382-BBA57-A1-DE014.jpg"
+                src={`https://i.ibb.co/wFD7JTdb/D3-D095-EF-D0-D5-47-A1-B382-BBA57-A1-DE014.jpg?t=${Date.now()}`}
                 alt="Mo Profile"
                 className="w-32 h-32 rounded-full object-cover z-10 relative"
+                onError={(e) => {
+                  console.error("Failed to load profile image:", e.currentTarget.src);
+                  e.currentTarget.src = "https://i.imgur.com/wjLMuWQ.jpeg"; // Reliable fallback
+                }}
               />
               <div className="profile-glow-effect"></div>
             </div>
