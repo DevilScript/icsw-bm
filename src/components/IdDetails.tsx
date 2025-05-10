@@ -167,7 +167,10 @@ const IdDetails = () => {
 
             <div className="relative z-20 flex justify-between items-center mt-4 gap-4">
               {data.is_sold_out ? (
-                <Lock className="w-4 h-4 text-red-400" />
+                <span className="flex items-center gap-1 text-red-400 font-medium text-sm">
+                  <Lock className="w-4 h-4" />
+                  SOLD OUT
+                </span>
               ) : data.link && isValidUrl(data.link) ? (
                 <a
                   href={data.link}
@@ -190,11 +193,6 @@ const IdDetails = () => {
                 <span className="text-pink-300 font-bold text-sm">${data.price}</span>
               </div>
             </div>
-            {data.is_sold_out && (
-              <div className="absolute bottom-[-24px] left-1/2 -translate-x-1/2 w-[60%] h-6 bg-glass-dark/30 text-red-400 text-xs font-medium flex items-center justify-center backdrop-blur-md border border-pink-300/20 shadow-lg shadow-pink-500/10 rounded-md animate-ribbon-slide z-20">
-                SOLD OUT
-              </div>
-            )}
           </GlassCard>
         ))
       )}
