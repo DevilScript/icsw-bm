@@ -1,37 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Instagram } from 'lucide-react';
 import GlassCard from '@/components/GlassCard';
 import { useLocation } from 'react-router-dom';
 
 const Contributors = () => {
   const location = useLocation();
-  const [imageSrc, setImageSrc] = useState('https://i.imgur.com/wjLMuWQ.jpeg');
-  const fallbackSrc = '/images/fallback-profile.png'; // Must exist in public/images/
+  const imageSrc = '/images/s.png'; // Primary image in public/images/
+  const fallbackSrc = '/images/sback.png'; // Fallback image in public/images/
 
-  // Preload image with retry and CSP-compliant fallback
+  // Preload primary image to ensure it loads reliably
   useEffect(() => {
-    let retries = 2;
     const preloadImage = () => {
       const img = new Image();
       img.src = imageSrc;
       img.onload = () => {
-        console.log('Image preloaded successfully:', imageSrc);
+        console.log('Primary image preloaded successfully:', imageSrc);
       };
       img.onerror = () => {
-        console.error('Failed to preload image:', imageSrc);
-        if (retries > 0) {
-          retries--;
-          setTimeout(preloadImage, 500); // Retry after 500ms
-        } else {
-          console.log('Switching to fallback image');
-          setImageSrc(fallbackSrc);
-        }
+        console.error('Failed to preload primary image:', imageSrc);
+        console.log('Will use fallback image');
       };
     };
-    if (imageSrc !== fallbackSrc) {
-      preloadImage();
-    }
-  }, [location.pathname, imageSrc]);
+    preloadImage();
+  }, [location.pathname]);
 
   return (
     <>
@@ -72,13 +63,13 @@ const Contributors = () => {
             <div className="profile-container relative w-32 h-32 mb-4 overflow-visible transform hover:scale-105 transition-all duration-300">
               <img
                 src={imageSrc}
-                alt="Profile"
+                alt="Mo Profile"
                 className="w-32 h-32 rounded-full object-cover z-10 relative"
                 onLoad={() => console.log('Profile image loaded:', imageSrc)}
                 onError={(e) => {
                   console.error('Failed to load profile image:', e.currentTarget.src);
                   e.currentTarget.src = fallbackSrc; // CSP-compliant fallback
-                  setImageSrc(fallbackSrc);
+                  console.log('Switched to fallback image:', fallbackSrc);
                 }}
               />
               <div className="profile-glow-effect"></div>
