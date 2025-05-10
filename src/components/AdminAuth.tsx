@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Key, Lock, Shield, Fingerprint } from 'lucide-react';
+import { Key, Lock, Shield, Fingerprint, Clipboard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import GlassCard from './GlassCard';
 import { useToast } from '@/hooks/use-toast';
@@ -65,6 +64,11 @@ const secureStorage = {
   }
 };
 
+// Utility to detect mobile devices
+const isMobileDevice = () => {
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+};
+
 const AdminAuth = () => {
   // State
   const [authStep, setAuthStep] = useState<AuthStep>('key');
@@ -72,6 +76,7 @@ const AdminAuth = () => {
   const [nonce, setNonce] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [authAttempts, setAuthAttempts] = useState<number>(0);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
   
   // Hooks
   const { toast } = useToast();
@@ -110,6 +115,11 @@ const AdminAuth = () => {
     return () => {
       document.head.removeChild(metaCSP);
     };
+  }, []);
+  
+  // Detect mobile device on mount
+  useEffect(() => {
+    setIsMobile(isMobileDevice());
   }, []);
   
   // Handle key request
@@ -160,6 +170,48 @@ const AdminAuth = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  // Handle paste from clipboard
+  const handlePaste = async () => {
+    try {
+      // Check if Clipboard API is supported
+      if (!navigator.clipboard) {
+        toast({
+          title: "ไม่สามารถเข้าถึงคลิปบอร์ด",
+          description: "กรุณาวางรหัสด้วยตนเองโดยกดค้างที่ช่องแล้วเลือกวาง",
+          variant: "destructive",
+          duration: 7000,
+        });
+        return;
+      }
+
+      // Request clipboard permission and read text
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        setInputKey(text.trim());
+        toast({
+          title: "วางรหัสสำเร็จ",
+          description: "รหัสถูกวางลงในช่องเรียบร้อยแล้ว",
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: "คลิปบอร์ดว่างเปล่า",
+          description: "ไม่มีข้อความในคลิปบอร์ด กรุณาคัดลอกรหัสแล้วลองอีกครั้ง",
+          variant: "destructive",
+          duration: 7000,
+        });
+      }
+    } catch (error) {
+      console.error('Paste error:', error);
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "ไม่สามารถวางรหัสได้ กรุณาวางด้วยตนเอง",
+        variant: "destructive",
+        duration: 7000,
+      });
     }
   };
   
@@ -312,18 +364,37 @@ const AdminAuth = () => {
         {/* Step 2: Verify Key */}
         {authStep === 'verification' && (
           <form onSubmit={handleVerificationSubmit} className="space-y-4">
-            <Input
-              type="password"
-              placeholder="ป้อนรหัสยืนยันตัวตน"
-              className="glass-input border-pink-300/30 focus:border-pink-400/50 text-center custom-cursor"
-              value={inputKey}
-              onChange={(e) => setInputKey(e.target.value)}
-              required
-              disabled={isLoading}
-              autoComplete="off" // Prevent browser from storing
-              autoCorrect="off"
-              spellCheck="false"
-            />
+            <div className="flex items-center space-x-2">
+              <Input
+                type="text" // Changed from password to text
+                placeholder="ป้อนรหัสยืนยันตัวตน"
+                className="glass-input border-pink-300/30 focus:border-pink-400/50 text-center custom-cursor flex-1"
+                value={inputKey}
+                onChange={(e) => setInputKey(e.target.value)}
+                onPaste={(e) => {
+                  // Explicitly handle paste event
+                  const pastedText = e.clipboardData.getData('text');
+                  if (pastedText) {
+                    setInputKey(pastedText.trim());
+                  }
+                }}
+                required
+                disabled={isLoading}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck="false"
+              />
+              {isMobile && (
+                <Button
+                  type="button"
+                  onClick={handlePaste}
+                  className="bg-glass-dark/40 text-pink-300 hover:bg-glass-dark/60 hover:text-pink-300 border border-pink-300/30 shadow-md transition-all duration-200"
+                  disabled={isLoading}
+                >
+                  <Clipboard size={16} />
+                </Button>
+              )}
+            </div>
             
             <div className="flex space-x-2">
               <Button 
