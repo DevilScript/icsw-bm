@@ -366,7 +366,7 @@ const AdminAuth = () => {
           <form onSubmit={handleVerificationSubmit} className="space-y-4">
             <div className="flex items-center space-x-2">
               <Input
-                type="text" // Changed from password to text
+                type="password" // Changed from password to text
                 placeholder="ป้อนรหัสยืนยันตัวตน"
                 className="glass-input border-pink-300/30 focus:border-pink-400/50 text-center custom-cursor flex-1"
                 value={inputKey}
