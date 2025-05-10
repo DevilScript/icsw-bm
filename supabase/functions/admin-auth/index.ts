@@ -7,7 +7,7 @@ import { encode as base64Encode } from "https://deno.land/std@0.177.0/encoding/b
 const EXPIRY_TIME_MINUTES = 5;
 const SESSION_EXPIRY_HOURS = 24;
 const MAX_AUTH_ATTEMPTS = 3;
-const DISCORD_WEBHOOK_URL = Deno.env.get("VITE_DISCORD_WEBHOOK_URL");
+const DISCORD_WEBHOOK_URL = Deno.env.get("DISCORD_WEBHOOK_URL");
 
 // CORS headers - Updated to include X-CSRF-TOKEN
 const corsHeaders = {
