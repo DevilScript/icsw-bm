@@ -6,15 +6,19 @@ interface GlassCardProps {
   children: ReactNode;
   className?: string;
   animate?: boolean;
+  onClick?: () => void;
 }
 
-const GlassCard = ({ children, className, animate = false }: GlassCardProps) => {
+const GlassCard = ({ children, className, animate = false, onClick }: GlassCardProps) => {
   return (
-    <div className={cn(
-      'glass-panel p-6', 
-      animate ? 'animate-fade-in' : '',
-      className
-    )}>
+    <div 
+      className={cn(
+        'glass-panel p-6', 
+        animate ? 'animate-fade-in' : '',
+        className
+      )}
+      onClick={onClick}
+    >
       {children}
     </div>
   );

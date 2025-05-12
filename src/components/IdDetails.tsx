@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import PurchaseButton from './PurchaseButton';
 import { useAuth } from '@/contexts/UserAuthContext';
 
-interface IdDetail {
+// Export the interface for use in other components
+export interface IdDetail {
   id: string;
   game_id: string;
   gp: number;
@@ -117,9 +118,14 @@ const IdDetails = () => {
                   <p className="text-glass-light">Clan: {id.clan}</p>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <StatusBadge status={id.is_active && !id.is_sold_out ? "active" : "inactive"} />
+                  <StatusBadge 
+                    status={id.is_active && !id.is_sold_out ? "active" : "inactive"} 
+                  />
                   {id.is_kagune_v2 && (
-                    <CountBadge value="V2" color="indigo" />
+                    <CountBadge 
+                      value="V2" 
+                      color="indigo" 
+                    />
                   )}
                 </div>
               </div>
@@ -170,7 +176,9 @@ const IdDetails = () => {
           <div className="bg-glass-dark border border-glass-light/20 rounded-lg shadow-xl max-w-lg w-full p-6 animate-fade-in">
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-2xl font-bold text-white">{selectedId.game_id}</h3>
-              <StatusBadge status={selectedId.is_active && !selectedId.is_sold_out ? "active" : "inactive"} />
+              <StatusBadge 
+                status={selectedId.is_active && !selectedId.is_sold_out ? "active" : "inactive"} 
+              />
             </div>
             
             <div className="grid grid-cols-2 gap-4 mb-6">
