@@ -11,7 +11,11 @@ import AdminAuth from "./components/AdminAuth";
 import NotFound from "./pages/NotFound";
 import Navbar from "./components/Navbar";
 import Contributors from '@/pages/Contributors';
+import AuthPage from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
+import TopUpPage from "./pages/TopUp";
 import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider as UserAuthProvider } from './contexts/UserAuthContext';
 import LoadingScreen from './components/LoadingScreen';
 
 const queryClient = new QueryClient({
@@ -39,23 +43,28 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          {isInitialLoad && <LoadingScreen />}
-          <BrowserRouter>
-            <Navbar />
-            <div className="pt-16"> {/* Add padding for fixed navbar */}
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/contributors" element={<Contributors />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/admin-auth" element={<AdminAuth />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </div>
-          </BrowserRouter>
-        </TooltipProvider>
+        <UserAuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            {isInitialLoad && <LoadingScreen />}
+            <BrowserRouter>
+              <Navbar />
+              <div className="pt-16"> {/* Add padding for fixed navbar */}
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/contributors" element={<Contributors />} />
+                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/admin-auth" element={<AdminAuth />} />
+                  <Route path="/auth" element={<AuthPage />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route path="/topup" element={<TopUpPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </div>
+            </BrowserRouter>
+          </TooltipProvider>
+        </UserAuthProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

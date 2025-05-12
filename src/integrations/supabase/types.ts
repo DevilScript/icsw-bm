@@ -78,6 +78,73 @@ export type Database = {
         }
         Relationships: []
       }
+      balance_log: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          user_id: string
+          username: string
+          voucher_code: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          user_id: string
+          username: string
+          voucher_code: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          user_id?: string
+          username?: string
+          voucher_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "balance_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "set_user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      balance_purchases: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          item_name: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          item_name: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          item_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "balance_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "set_user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       set_clan: {
         Row: {
           clan: string
@@ -114,6 +181,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_kagune_v2: boolean
+          is_sold_out: boolean | null
           kagune: string
           link: string | null
           price: number
@@ -129,6 +197,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_kagune_v2?: boolean
+          is_sold_out?: boolean | null
           kagune: string
           link?: string | null
           price: number
@@ -144,6 +213,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_kagune_v2?: boolean
+          is_sold_out?: boolean | null
           kagune?: string
           link?: string | null
           price?: number
@@ -177,33 +247,33 @@ export type Database = {
         }
         Relationships: []
       }
-      two_factor_auth: {
+      set_user: {
         Row: {
-          auth_code: string
-          contact_method: string
-          contact_value: string
+          balance: number
           created_at: string
-          expires_at: string
+          email: string | null
           id: string
-          verified: boolean
+          nickname: string | null
+          updated_at: string
+          username: string
         }
         Insert: {
-          auth_code: string
-          contact_method: string
-          contact_value: string
+          balance?: number
           created_at?: string
-          expires_at: string
-          id?: string
-          verified?: boolean
+          email?: string | null
+          id: string
+          nickname?: string | null
+          updated_at?: string
+          username: string
         }
         Update: {
-          auth_code?: string
-          contact_method?: string
-          contact_value?: string
+          balance?: number
           created_at?: string
-          expires_at?: string
+          email?: string | null
           id?: string
-          verified?: boolean
+          nickname?: string | null
+          updated_at?: string
+          username?: string
         }
         Relationships: []
       }
@@ -212,7 +282,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_balance_and_log: {
+        Args: {
+          p_user_id: string
+          p_username: string
+          p_amount: number
+          p_voucher_code: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

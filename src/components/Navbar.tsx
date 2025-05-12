@@ -1,6 +1,9 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/UserAuthContext';
+import { Wallet, LogIn } from 'lucide-react';
 
 const styles = `
   @keyframes pulseGlow {
@@ -20,6 +23,8 @@ const styles = `
 `;
 
 const Navbar = () => {
+  const { user, profile } = useAuth();
+
   return (
     <nav className="w-full py-4 px-6 bg-glass-dark/60 backdrop-blur-md border-b border-glass-light/10 fixed top-0 left-0 z-10">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -38,11 +43,29 @@ const Navbar = () => {
             <Link to="/">Dashboard</Link>
           </Button>
           <Button variant="ghost" asChild className="text-glass-light hover:text-white hover:bg-glass-dark/50 animate-float">
-          <Link to="/contributors">Contributors</Link>
+            <Link to="/contributors">Contributors</Link>
           </Button>
-          <Button variant="ghost" asChild className="text-glass-light hover:text-white hover:bg-glass-dark/50 animate-float">
-          <Link to="/admin">Admin</Link>
-          </Button>
+          
+          {user ? (
+            <>
+              <Button variant="ghost" asChild className="text-glass-light hover:text-white hover:bg-glass-dark/50 animate-float">
+                <Link to="/topup">
+                  <Wallet className="mr-1 h-4 w-4" />
+                  {profile ? `${profile.balance.toFixed(0)} THB` : 'Top Up'}
+                </Link>
+              </Button>
+              <Button variant="ghost" asChild className="text-glass-light hover:text-white hover:bg-glass-dark/50 animate-float">
+                <Link to="/admin">Admin</Link>
+              </Button>
+            </>
+          ) : (
+            <Button variant="ghost" asChild className="text-glass-light hover:text-white hover:bg-glass-dark/50 animate-float">
+              <Link to="/auth">
+                <LogIn className="mr-1 h-4 w-4" />
+                Login
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
     </nav>
