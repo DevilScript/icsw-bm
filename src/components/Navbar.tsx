@@ -40,9 +40,6 @@ const Navbar = () => {
           <Button variant="ghost" asChild className="text-glass-light hover:text-white hover:bg-glass-dark/50 animate-float">
           <Link to="/contributors">Contributors</Link>
           </Button>
-          <Button variant="ghost" asChild className="text-glass-light hover:text-white hover:bg-glass-dark/50 animate-float">
-          <Link to="/admin">Admin</Link>
-          </Button>
         </div>
       </div>
     </nav>
