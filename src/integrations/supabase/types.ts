@@ -78,106 +78,6 @@ export type Database = {
         }
         Relationships: []
       }
-      balance_log: {
-        Row: {
-          amount: number
-          created_at: string
-          id: string
-          user_id: string
-          username: string
-          voucher_code: string
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          id?: string
-          user_id: string
-          username: string
-          voucher_code: string
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          id?: string
-          user_id?: string
-          username?: string
-          voucher_code?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "balance_log_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "set_user"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      balance_purchases: {
-        Row: {
-          amount: number
-          created_at: string
-          id: string
-          item_name: string
-          user_id: string
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          id?: string
-          item_name: string
-          user_id: string
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          id?: string
-          item_name?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "balance_purchases_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "set_user"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      purchases: {
-        Row: {
-          id: string
-          item_name: string
-          item_type: string
-          login_id: string | null
-          login_pass: string | null
-          price: number
-          purchased_at: string | null
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          item_name: string
-          item_type: string
-          login_id?: string | null
-          login_pass?: string | null
-          price: number
-          purchased_at?: string | null
-          user_id: string
-        }
-        Update: {
-          id?: string
-          item_name?: string
-          item_type?: string
-          login_id?: string | null
-          login_pass?: string | null
-          price?: number
-          purchased_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       set_clan: {
         Row: {
           clan: string
@@ -205,42 +105,6 @@ export type Database = {
         }
         Relationships: []
       }
-      set_clan_id: {
-        Row: {
-          clan: string
-          created_at: string | null
-          id: string
-          is_active: boolean | null
-          is_sold_out: boolean | null
-          price: number
-          updated_at: string | null
-          user_id: string | null
-          user_pass: string | null
-        }
-        Insert: {
-          clan: string
-          created_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          is_sold_out?: boolean | null
-          price: number
-          updated_at?: string | null
-          user_id?: string | null
-          user_pass?: string | null
-        }
-        Update: {
-          clan?: string
-          created_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          is_sold_out?: boolean | null
-          price?: number
-          updated_at?: string | null
-          user_id?: string | null
-          user_pass?: string | null
-        }
-        Relationships: []
-      }
       set_id: {
         Row: {
           clan: string
@@ -250,15 +114,12 @@ export type Database = {
           id: string
           is_active: boolean
           is_kagune_v2: boolean
-          is_sold_out: boolean | null
           kagune: string
           link: string | null
           price: number
           rank: string
           rc: number
           updated_at: string | null
-          user_id: string | null
-          user_pass: string | null
         }
         Insert: {
           clan: string
@@ -268,15 +129,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_kagune_v2?: boolean
-          is_sold_out?: boolean | null
           kagune: string
           link?: string | null
           price: number
           rank: string
           rc: number
           updated_at?: string | null
-          user_id?: string | null
-          user_pass?: string | null
         }
         Update: {
           clan?: string
@@ -286,15 +144,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_kagune_v2?: boolean
-          is_sold_out?: boolean | null
           kagune?: string
           link?: string | null
           price?: number
           rank?: string
           rc?: number
           updated_at?: string | null
-          user_id?: string | null
-          user_pass?: string | null
         }
         Relationships: []
       }
@@ -322,33 +177,33 @@ export type Database = {
         }
         Relationships: []
       }
-      set_user: {
+      two_factor_auth: {
         Row: {
-          balance: number
+          auth_code: string
+          contact_method: string
+          contact_value: string
           created_at: string
-          email: string | null
+          expires_at: string
           id: string
-          nickname: string | null
-          updated_at: string
-          username: string
+          verified: boolean
         }
         Insert: {
-          balance?: number
+          auth_code: string
+          contact_method: string
+          contact_value: string
           created_at?: string
-          email?: string | null
-          id: string
-          nickname?: string | null
-          updated_at?: string
-          username: string
+          expires_at: string
+          id?: string
+          verified?: boolean
         }
         Update: {
-          balance?: number
+          auth_code?: string
+          contact_method?: string
+          contact_value?: string
           created_at?: string
-          email?: string | null
+          expires_at?: string
           id?: string
-          nickname?: string | null
-          updated_at?: string
-          username?: string
+          verified?: boolean
         }
         Relationships: []
       }
@@ -357,15 +212,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      update_balance_and_log: {
-        Args: {
-          p_user_id: string
-          p_username: string
-          p_amount: number
-          p_voucher_code: string
-        }
-        Returns: undefined
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never

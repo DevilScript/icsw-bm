@@ -1,17 +1,16 @@
 
-# A string used as a project reference
 project_id = "tnwgtlyuabpmxsqiyjof"
+
 [api]
 enabled = true
+port = 54321
+schemas = ["public", "storage", "auth"]
+
 [db]
-enabled = true
-[realtime]
-enabled = true
-[storage]
-enabled = true
-[auth]
-enabled = true
-# Configure the Edge Functions
-[functions]
-[functions.redeem-voucher]
-verify_jwt = true
+port = 54322
+
+[studio]
+port = 54323
+
+[functions.admin-auth]
+verify_jwt = false

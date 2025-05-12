@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import GlassCard from '@/components/GlassCard';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { IdDetail } from '@/components/IdDetails';
+import { IdData } from '@/components/IdDetails';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -92,7 +92,7 @@ const Admin = () => {
   });
 
   const [removeId, setRemoveId] = useState('');
-  const [savedIds, setSavedIds] = useState<IdDetail[]>([]);
+  const [savedIds, setSavedIds] = useState<IdData[]>([]);
   const [savedClans, setSavedClans] = useState<ClanData[]>([]);
 
   // CCG Ranks
