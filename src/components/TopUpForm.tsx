@@ -94,7 +94,7 @@ const TopUpForm = () => {
 
   return (
     <div className="p-6 rounded-lg border border-pink-300/30 bg-glass-dark/60 backdrop-blur-md shadow-lg shadow-pink-500/10">
-      <h2 className="text-xl font-semibold text-white mb-4">Top Up Your Balance</h2>
+      <h2 className="text-xl font-semibold text-white mb-4">Redeem TrueMoney Voucher</h2>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
@@ -102,7 +102,7 @@ const TopUpForm = () => {
             name="voucherCode"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-white">TrueMoney Voucher Code</FormLabel>
+                <FormLabel className="text-white">Voucher Code</FormLabel>
                 <FormControl>
                   <Input 
                     placeholder="Enter your voucher code" 
@@ -117,7 +117,7 @@ const TopUpForm = () => {
           
           <Button 
             type="submit" 
-            className="w-full bg-pink-500 hover:bg-pink-600" 
+            className="w-full bg-pink-500 hover:bg-pink-600 transition-all transform hover:scale-105" 
             disabled={isLoading}
           >
             {isLoading ? (
