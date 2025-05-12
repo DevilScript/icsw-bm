@@ -17,11 +17,11 @@ const UserProfile = () => {
   };
 
   return (
-    <div className="p-6 rounded-lg border border-pink-300/30 bg-glass-dark/60 backdrop-blur-md shadow-lg shadow-pink-500/10">
+    <div className="p-6 rounded-lg border border-gray-700/30 bg-glass-dark/60 backdrop-blur-md shadow-lg shadow-gray-900/10">
       <div className="flex items-center gap-4">
-        <Avatar className="h-16 w-16 border-2 border-pink-500/50">
+        <Avatar className="h-16 w-16 border-2 border-gray-500/50">
           <AvatarImage src={user.user_metadata.avatar_url} />
-          <AvatarFallback className="bg-pink-500/20 text-white">
+          <AvatarFallback className="bg-gray-800/80 text-white">
             {getInitials(profile.username)}
           </AvatarFallback>
         </Avatar>
@@ -34,16 +34,16 @@ const UserProfile = () => {
       
       <div className="mt-6 p-4 rounded-lg bg-glass-dark/40 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Wallet className="h-5 w-5 text-pink-400" />
+          <Wallet className="h-5 w-5 text-gray-400" />
           <span className="text-glass-light">Balance:</span>
         </div>
-        <span className="text-xl font-bold text-pink-400">{profile.balance.toFixed(2)} THB</span>
+        <span className="text-xl font-bold text-white animate-pulse-glow">{profile.balance.toFixed(2)} THB</span>
       </div>
       
       <div className="mt-6">
         <Button 
           variant="outline" 
-          className="w-full border-pink-300/30 hover:bg-pink-500/20 text-white"
+          className="w-full border-gray-700/30 hover:bg-gray-800/50 text-white"
           onClick={signOut}
         >
           Logout

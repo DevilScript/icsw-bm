@@ -145,6 +145,39 @@ export type Database = {
           },
         ]
       }
+      purchases: {
+        Row: {
+          id: string
+          item_name: string
+          item_type: string
+          login_id: string | null
+          login_pass: string | null
+          price: number
+          purchased_at: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          item_name: string
+          item_type: string
+          login_id?: string | null
+          login_pass?: string | null
+          price: number
+          purchased_at?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          item_name?: string
+          item_type?: string
+          login_id?: string | null
+          login_pass?: string | null
+          price?: number
+          purchased_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       set_clan: {
         Row: {
           clan: string
@@ -172,6 +205,42 @@ export type Database = {
         }
         Relationships: []
       }
+      set_clan_id: {
+        Row: {
+          clan: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          is_sold_out: boolean | null
+          price: number
+          updated_at: string | null
+          user_id: string | null
+          user_pass: string | null
+        }
+        Insert: {
+          clan: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_sold_out?: boolean | null
+          price: number
+          updated_at?: string | null
+          user_id?: string | null
+          user_pass?: string | null
+        }
+        Update: {
+          clan?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_sold_out?: boolean | null
+          price?: number
+          updated_at?: string | null
+          user_id?: string | null
+          user_pass?: string | null
+        }
+        Relationships: []
+      }
       set_id: {
         Row: {
           clan: string
@@ -188,6 +257,8 @@ export type Database = {
           rank: string
           rc: number
           updated_at: string | null
+          user_id: string | null
+          user_pass: string | null
         }
         Insert: {
           clan: string
@@ -204,6 +275,8 @@ export type Database = {
           rank: string
           rc: number
           updated_at?: string | null
+          user_id?: string | null
+          user_pass?: string | null
         }
         Update: {
           clan?: string
@@ -220,6 +293,8 @@ export type Database = {
           rank?: string
           rc?: number
           updated_at?: string | null
+          user_id?: string | null
+          user_pass?: string | null
         }
         Relationships: []
       }

@@ -24,8 +24,8 @@ interface AuthContextType {
   session: Session | null;
   profile: UserProfile | null;
   purchaseHistory: PurchaseHistory[];
-  signUp: (email: string, password: string, username: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (username: string, password: string) => Promise<void>;
+  signIn: (username: string, password: string) => Promise<void>;
   signInWithDiscord: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -141,8 +141,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const signUp = async (email: string, password: string, username: string) => {
+  const signUp = async (username: string, password: string) => {
     try {
+      // Generate a fake email using the username
+      const email = `${username}@example.com`;
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -157,7 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       toast({
         title: "Registration successful",
-        description: "Your account has been created. Please check your email for verification.",
+        description: "Your account has been created successfully",
         duration: 5000,
       });
       
@@ -173,8 +176,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (username: string, password: string) => {
     try {
+      // Generate the same fake email format as used in signUp
+      const email = `${username}@example.com`;
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,

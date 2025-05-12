@@ -14,6 +14,7 @@ import Contributors from '@/pages/Contributors';
 import AuthPage from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
 import TopUpPage from "./pages/TopUp";
+import History from "./pages/History";
 import { AuthProvider } from './contexts/AuthContext';
 import { AuthProvider as UserAuthProvider } from './contexts/UserAuthContext';
 import LoadingScreen from './components/LoadingScreen';
@@ -59,6 +60,7 @@ const App = () => {
                   <Route path="/auth" element={<AuthPage />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/topup" element={<TopUpPage />} />
+                  <Route path="/history" element={<History />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </div>

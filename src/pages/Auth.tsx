@@ -15,14 +15,13 @@ import { Loader2 } from 'lucide-react';
 
 // Login form schema
 const loginSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email" }),
+  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
 });
 
 // Registration form schema
 const registerSchema = z.object({
   username: z.string().min(3, { message: "Username must be at least 3 characters" }).max(20),
-  email: z.string().email({ message: "Please enter a valid email" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
   confirmPassword: z.string(),
 }).refine(data => data.password === data.confirmPassword, {
@@ -60,7 +59,7 @@ const AuthPage = () => {
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      username: "",
       password: "",
     },
   });
@@ -70,7 +69,6 @@ const AuthPage = () => {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       username: "",
-      email: "",
       password: "",
       confirmPassword: "",
     },
@@ -80,7 +78,7 @@ const AuthPage = () => {
   const onLoginSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      await signIn(data.email, data.password);
+      await signIn(data.username, data.password);
       navigate("/");
     } catch (error) {
       // Error is handled in the auth context
@@ -93,10 +91,10 @@ const AuthPage = () => {
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     try {
-      await signUp(data.email, data.password, data.username);
+      await signUp(data.username, data.password);
       toast({
         title: "Registration successful",
-        description: "Please check your email to verify your account",
+        description: "Your account has been created successfully",
       });
       setActiveTab("login");
     } catch (error) {
@@ -120,17 +118,17 @@ const AuthPage = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen px-4 py-12 bg-glass-dark">
-      <Card className="w-full max-w-md border border-pink-300/20 bg-glass-dark/60 backdrop-blur-md shadow-lg shadow-pink-500/10">
+      <Card className="w-full max-w-md border border-gray-700/30 bg-glass-dark/60 backdrop-blur-md shadow-lg shadow-gray-900/20">
         <CardHeader className="text-center pb-4">
           <CardTitle className="text-2xl font-bold text-white">Welcome</CardTitle>
         </CardHeader>
         
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "register")} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-glass-dark/40 backdrop-blur-sm border border-pink-300/20 mb-6">
-            <TabsTrigger value="login" className="data-[state=active]:bg-pink-500/80 data-[state=active]:text-white">
+          <TabsList className="grid w-full grid-cols-2 bg-glass-dark/40 backdrop-blur-sm border border-gray-700/20 mb-6">
+            <TabsTrigger value="login" className="data-[state=active]:bg-gray-800 data-[state=active]:text-white">
               Login
             </TabsTrigger>
-            <TabsTrigger value="register" className="data-[state=active]:bg-pink-500/80 data-[state=active]:text-white">
+            <TabsTrigger value="register" className="data-[state=active]:bg-gray-800 data-[state=active]:text-white">
               Register
             </TabsTrigger>
           </TabsList>
@@ -141,13 +139,13 @@ const AuthPage = () => {
                 <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                   <FormField
                     control={loginForm.control}
-                    name="email"
+                    name="username"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-white">Email</FormLabel>
+                        <FormLabel className="text-white">Username</FormLabel>
                         <FormControl>
                           <Input 
-                            placeholder="Enter your email" 
+                            placeholder="Enter your username" 
                             {...field} 
                             className="bg-glass-dark/40 border-glass-light/20 text-white" 
                           />
@@ -178,7 +176,7 @@ const AuthPage = () => {
                   
                   <Button 
                     type="submit" 
-                    className="w-full bg-pink-500 hover:bg-pink-600 font-medium"
+                    className="w-full bg-gray-800 hover:bg-gray-700 font-medium shadow-md shadow-black/10"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -193,7 +191,7 @@ const AuthPage = () => {
                   <div className="text-center mt-2">
                     <p className="text-sm text-glass-light">
                       No account yet? <span 
-                        className="text-pink-400 hover:text-pink-300 cursor-pointer underline"
+                        className="text-gray-400 hover:text-gray-300 cursor-pointer underline"
                         onClick={() => setActiveTab("register")}
                       >
                         Register
@@ -253,24 +251,6 @@ const AuthPage = () => {
                   
                   <FormField
                     control={registerForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white">Email</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="Enter your email" 
-                            {...field} 
-                            className="bg-glass-dark/40 border-glass-light/20 text-white" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={registerForm.control}
                     name="password"
                     render={({ field }) => (
                       <FormItem>
@@ -309,7 +289,7 @@ const AuthPage = () => {
                   
                   <Button 
                     type="submit" 
-                    className="w-full bg-pink-500 hover:bg-pink-600 font-medium"
+                    className="w-full bg-gray-800 hover:bg-gray-700 font-medium shadow-md shadow-black/10"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -324,7 +304,7 @@ const AuthPage = () => {
                   <div className="text-center mt-2">
                     <p className="text-sm text-glass-light">
                       Already have an account? <span 
-                        className="text-pink-400 hover:text-pink-300 cursor-pointer underline"
+                        className="text-gray-400 hover:text-gray-300 cursor-pointer underline"
                         onClick={() => setActiveTab("login")}
                       >
                         Login

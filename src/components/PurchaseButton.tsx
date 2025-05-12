@@ -92,7 +92,7 @@ const PurchaseButton = ({ itemId, itemName, price, onPurchaseComplete }: Purchas
       disabled={isLoading || !profile || profile.balance < price}
       className={`px-4 py-2 rounded-full transition-all ${
         profile && profile.balance >= price
-          ? 'bg-pink-500 hover:bg-pink-600 hover:scale-105'
+          ? 'bg-gray-800 hover:bg-gray-700 hover:scale-105'
           : 'bg-gray-500 cursor-not-allowed'
       }`}
     >

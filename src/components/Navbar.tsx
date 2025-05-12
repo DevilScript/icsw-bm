@@ -19,13 +19,13 @@ import { format } from 'date-fns';
 const styles = `
   @keyframes pulseGlow {
     0% {
-      text-shadow: 0 0 5px rgba(255, 192, 203, 0.4), 0 0 10px rgba(255, 192, 203, 0.2);
+      text-shadow: 0 0 5px rgba(255, 255, 255, 0.4), 0 0 10px rgba(255, 255, 255, 0.2);
     }
     50% {
-      text-shadow: 0 0 15px rgba(255, 192, 203, 0.8), 0 0 20px rgba(255, 192, 203, 0.4);
+      text-shadow: 0 0 15px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.4);
     }
     100% {
-      text-shadow: 0 0 5px rgba(255, 192, 203, 0.4), 0 0 10px rgba(255, 192, 203, 0.2);
+      text-shadow: 0 0 5px rgba(255, 255, 255, 0.4), 0 0 10px rgba(255, 255, 255, 0.2);
     }
   }
   .animate-pulse-glow {
@@ -48,7 +48,7 @@ const Navbar = () => {
           <style>{styles}</style>
           <span className="text-xl font-bold text-white">
             ICS
-            <span className="text-pink-300 animate-pulse-glow">
+            <span className="text-white animate-pulse-glow">
               W
             </span>
           </span>
@@ -81,9 +81,9 @@ const Navbar = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative flex items-center gap-2 text-white hover:bg-glass-dark/50 pr-8">
-                    <Avatar className="h-8 w-8 border border-pink-500/50">
+                    <Avatar className="h-8 w-8 border border-gray-500/50">
                       <AvatarImage src={user.user_metadata.avatar_url} />
-                      <AvatarFallback className="bg-pink-500/20 text-white text-xs">
+                      <AvatarFallback className="bg-gray-800/80 text-white text-xs">
                         {getInitials(profile?.username)}
                       </AvatarFallback>
                     </Avatar>
@@ -92,7 +92,7 @@ const Navbar = () => {
                         {profile?.nickname || profile?.username || 'User'}
                       </span>
                       {profile && (
-                        <span className="text-xs text-pink-400 font-medium">
+                        <span className="text-xs text-white font-medium animate-pulse-glow">
                           {profile.balance.toFixed(0)} THB
                         </span>
                       )}
@@ -109,8 +109,8 @@ const Navbar = () => {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-glass-light/20" />
                   <DropdownMenuGroup>
-                    <DropdownMenuItem className="flex items-center gap-2 cursor-pointer focus:bg-pink-500/20">
-                      <Wallet className="w-4 h-4 text-pink-400" />
+                    <DropdownMenuItem className="flex items-center gap-2 cursor-pointer focus:bg-gray-800/50">
+                      <Wallet className="w-4 h-4 text-gray-400" />
                       <span>Balance: {profile?.balance.toFixed(0)} THB</span>
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
@@ -124,7 +124,7 @@ const Navbar = () => {
                         <DropdownMenuItem key={purchase.id} className="flex flex-col items-start gap-1 cursor-default focus:bg-transparent">
                           <span className="text-sm font-medium text-white">{purchase.item_name}</span>
                           <div className="flex justify-between w-full text-xs">
-                            <span className="text-pink-400">{purchase.amount} THB</span>
+                            <span className="text-gray-400">{purchase.amount} THB</span>
                             <span className="text-glass-light">
                               {format(new Date(purchase.created_at), 'dd MMM yyyy')}
                             </span>
@@ -137,7 +137,16 @@ const Navbar = () => {
                   )}
                   <DropdownMenuSeparator className="bg-glass-light/20" />
                   <DropdownMenuItem 
-                    className="flex items-center gap-2 cursor-pointer focus:bg-pink-500/20"
+                    className="flex items-center gap-2 cursor-pointer focus:bg-gray-800/50"
+                    asChild
+                  >
+                    <Link to="/history">
+                      <History className="w-4 h-4" />
+                      <span>Purchase History</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="flex items-center gap-2 cursor-pointer focus:bg-gray-800/50"
                     asChild
                   >
                     <Link to="/topup">
@@ -146,7 +155,7 @@ const Navbar = () => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem 
-                    className="flex items-center gap-2 cursor-pointer focus:bg-pink-500/20 text-red-400"
+                    className="flex items-center gap-2 cursor-pointer focus:bg-gray-800/50 text-red-400"
                     onClick={signOut}
                   >
                     <LogOut className="w-4 h-4" />
@@ -154,13 +163,6 @@ const Navbar = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              
-              <Button variant="ghost" asChild className="text-glass-light hover:text-white hover:bg-glass-dark/50 animate-float">
-                <Link to="/topup">
-                  <Wallet className="mr-1 h-4 w-4" />
-                  Top Up
-                </Link>
-              </Button>
             </div>
           ) : (
             <Button variant="ghost" asChild className="text-glass-light hover:text-white hover:bg-glass-dark/50 animate-float">
@@ -187,42 +189,40 @@ const Navbar = () => {
           
           {user ? (
             <>
-              <Button variant="ghost" asChild className="w-full justify-start text-glass-light hover:text-white hover:bg-glass-dark/50"
-                onClick={() => setMobileMenuOpen(false)}>
-                <Link to="/topup">
-                  <Wallet className="mr-2 h-4 w-4" />
-                  Top Up ({profile?.balance.toFixed(0)} THB)
-                </Link>
-              </Button>
-              
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="w-full justify-start text-glass-light hover:text-white hover:bg-glass-dark/50">
                     <User className="mr-2 h-4 w-4" />
                     {profile?.nickname || profile?.username || 'Profile'}
+                    {profile && (
+                      <span className="ml-2 text-white animate-pulse-glow">{profile.balance.toFixed(0)} THB</span>
+                    )}
                     <ChevronDown className="ml-auto h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56 bg-glass-dark border border-glass-light/20 text-white">
-                  <DropdownMenuLabel>Purchase History</DropdownMenuLabel>
+                  <DropdownMenuLabel>Account</DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-glass-light/20" />
-                  {purchaseHistory.length > 0 ? (
-                    <div className="max-h-40 overflow-y-auto">
-                      {purchaseHistory.slice(0, 5).map((purchase) => (
-                        <DropdownMenuItem key={purchase.id} className="flex flex-col items-start gap-1 cursor-default focus:bg-transparent">
-                          <span className="text-sm font-medium text-white">{purchase.item_name}</span>
-                          <div className="flex justify-between w-full text-xs">
-                            <span className="text-pink-400">{purchase.amount} THB</span>
-                            <span className="text-glass-light">
-                              {format(new Date(purchase.created_at), 'dd MMM yyyy')}
-                            </span>
-                          </div>
-                        </DropdownMenuItem>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="px-2 py-1 text-sm text-glass-light">No purchases yet</div>
-                  )}
+                  <DropdownMenuItem 
+                    className="flex items-center gap-2 cursor-pointer"
+                    asChild
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Link to="/history">
+                      <History className="w-4 h-4" />
+                      <span>Purchase History</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="flex items-center gap-2 cursor-pointer"
+                    asChild
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Link to="/topup">
+                      <Wallet className="w-4 h-4" />
+                      <span>Top Up</span>
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-glass-light/20" />
                   <DropdownMenuItem 
                     className="flex items-center gap-2 cursor-pointer text-red-400"
